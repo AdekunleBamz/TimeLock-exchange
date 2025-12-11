@@ -1,0 +1,32 @@
+---
+id: 0
+name: Mainnet deployment
+network: mainnet
+stacks-node: "https://api.mainnet.hiro.so"
+bitcoin-node: "http://blockstack:blockstacksystem@bitcoin.blockstack.com:8332"
+plan:
+  batches:
+    - id: 0
+      transactions:
+        - contract-publish:
+            contract-name: fee-collector
+            expected-sender: SP3FKNEZ86RG5RT7SZ5FBRGH85FZNG94ZH1MCGG6N
+            cost: 7430
+            path: contracts/fee-collector.clar
+            anchor-block-only: true
+            clarity-version: 4
+        - contract-publish:
+            contract-name: position-nft
+            expected-sender: SP3FKNEZ86RG5RT7SZ5FBRGH85FZNG94ZH1MCGG6N
+            cost: 19670
+            path: contracts/position-nft.clar
+            anchor-block-only: true
+            clarity-version: 4
+        - contract-publish:
+            contract-name: timelock-exchange
+            expected-sender: SP3FKNEZ86RG5RT7SZ5FBRGH85FZNG94ZH1MCGG6N
+            cost: 30830
+            path: contracts/timelock-exchange.clar
+            anchor-block-only: true
+            clarity-version: 4
+      epoch: "3.3"
