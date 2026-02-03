@@ -587,6 +587,106 @@
       penalty-paid: penalty-amount
     })))
 
+;; ============================================
+;; POSITION TRANSFER
+;; ============================================
+
+;; Transfer ownership of a position to another user
+(define-public (transfer-position (position-id uint) (new-owner principal))
+  (let (
+    (position (unwrap! (map-get? positions position-id) ERR_NOT_FOUND))
+    (current-time stacks-block-time)
+  )
+    ;; Validation
+    (asserts! (not (var-get contract-paused)) ERR_CONTRACT_PAUSED)
+    (asserts! (is-eq (get owner position) tx-sender) ERR_NOT_AUTHORIZED)
+    (asserts! (get is-active position) ERR_NOT_FOUND)
+    (asserts! (not (is-eq new-owner tx-sender)) ERR_INVALID_AMOUNT) ;; Can't transfer to self
+    (asserts! (not (get passkey-protected position)) ERR_NOT_AUTHORIZED) ;; Can't transfer passkey-protected positions
+
+    ;; Update position owner
+    (map-set positions position-id (merge position { owner: new-owner }))
+
+    ;; Update user position lists
+    (remove-position-from-user tx-sender position-id)
+    (asserts! (add-position-to-user new-owner position-id) ERR_NOT_FOUND)
+
+    ;; Emit event
+    (print {
+      event: "position-transferred",
+      position-id: position-id,
+      from: tx-sender,
+      to: new-owner,
+      amount: (get amount position),
+      timestamp: current-time
+    })
+
+    (ok true)))
+
+;; Transfer position with passkey verification (for passkey-protected positions)
+(define-public (transfer-position-with-passkey 
+  (position-id uint) 
+  (new-owner principal)
+  (message-hash (buff 32))
+  (signature (buff 64)))
+  (let (
+    (position (unwrap! (map-get? positions position-id) ERR_NOT_FOUND))
+    (current-time stacks-block-time)
+    (user-pubkey (unwrap! (map-get? passkey-registry tx-sender) ERR_NOT_AUTHORIZED))
+  )
+    ;; Validation
+    (asserts! (not (var-get contract-paused)) ERR_CONTRACT_PAUSED)
+    (asserts! (is-eq (get owner position) tx-sender) ERR_NOT_AUTHORIZED)
+    (asserts! (get is-active position) ERR_NOT_FOUND)
+    (asserts! (get passkey-protected position) ERR_NOT_AUTHORIZED)
+    (asserts! (not (is-eq new-owner tx-sender)) ERR_INVALID_AMOUNT)
+    
+    ;; Verify passkey signature (Clarity 4)
+    (asserts! (secp256r1-verify message-hash signature user-pubkey) ERR_NOT_AUTHORIZED)
+
+    ;; Update position owner (remove passkey protection on transfer)
+    (map-set positions position-id (merge position { 
+      owner: new-owner,
+      passkey-protected: false 
+    }))
+
+    ;; Update user position lists
+    (remove-position-from-user tx-sender position-id)
+    (asserts! (add-position-to-user new-owner position-id) ERR_NOT_FOUND)
+
+    ;; Emit event
+    (print {
+      event: "position-transferred-with-passkey",
+      position-id: position-id,
+      from: tx-sender,
+      to: new-owner,
+      amount: (get amount position),
+      passkey-verified: true,
+      timestamp: current-time
+    })
+
+    (ok true)))
+
+;; Helper function to remove position from user's list
+(define-private (remove-position-from-user (user principal) (position-id uint))
+  (let (
+    (current-positions (default-to (list) (map-get? user-positions user)))
+    (current-count (default-to u0 (map-get? user-position-count user)))
+    (new-positions (filter not-matching-position current-positions))
+  )
+    ;; Store for filter context
+    (var-set filter-target-position position-id)
+    (map-set user-positions user new-positions)
+    (map-set user-position-count user (if (> current-count u0) (- current-count u1) u0))
+    true))
+
+;; Filter target for position removal
+(define-data-var filter-target-position uint u0)
+
+;; Filter predicate for position removal
+(define-private (not-matching-position (pid uint))
+  (not (is-eq pid (var-get filter-target-position))))
+
 ;; Demo function that uses all Clarity 4 functions
 (define-public (comprehensive-demo
   (bot-contract principal)
