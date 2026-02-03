@@ -1,9 +1,9 @@
 ---
 id: 0
-name: Mainnet deployment - TimeLock Exchange v2.0
-network: mainnet
-stacks-node: "https://api.mainnet.hiro.so"
-bitcoin-node: "http://blockstack:blockstacksystem@bitcoin.blockstack.com:8332"
+name: Testnet deployment - TimeLock Exchange v2.0
+network: testnet
+stacks-node: "https://api.testnet.hiro.so"
+bitcoin-node: "http://blockstack:blockstacksystem@bitcoin-testnet.blockstack.com:18332"
 plan:
   batches:
     # Batch 0: Core infrastructure contracts
@@ -11,7 +11,7 @@ plan:
       transactions:
         - contract-publish:
             contract-name: fee-collector
-            expected-sender: SP3FKNEZ86RG5RT7SZ5FBRGH85FZNG94ZH1MCGG6N
+            expected-sender: ST3FKNEZ86RG5RT7SZ5FBRGH85FZNG94ZHTEST
             cost: 15000
             path: contracts/fee-collector.clar
             anchor-block-only: true
@@ -22,7 +22,7 @@ plan:
       transactions:
         - contract-publish:
             contract-name: position-nft
-            expected-sender: SP3FKNEZ86RG5RT7SZ5FBRGH85FZNG94ZH1MCGG6N
+            expected-sender: ST3FKNEZ86RG5RT7SZ5FBRGH85FZNG94ZHTEST
             cost: 35000
             path: contracts/position-nft.clar
             anchor-block-only: true
@@ -33,7 +33,7 @@ plan:
       transactions:
         - contract-publish:
             contract-name: timelock-exchange
-            expected-sender: SP3FKNEZ86RG5RT7SZ5FBRGH85FZNG94ZH1MCGG6N
+            expected-sender: ST3FKNEZ86RG5RT7SZ5FBRGH85FZNG94ZHTEST
             cost: 85000
             path: contracts/timelock-exchange.clar
             anchor-block-only: true
