@@ -3,7 +3,8 @@ id: 0
 name: Mainnet deployment - TimeLock Exchange v2.0
 network: mainnet
 stacks-node: "https://api.mainnet.hiro.so"
-bitcoin-node: "http://blockstack:blockstacksystem@bitcoin.blockstack.com:8332"
+# Bitcoin node URL - set via environment or Clarinet config
+# bitcoin-node: "${BITCOIN_NODE_URL}"
 plan:
   batches:
     # Batch 0: Core infrastructure contracts

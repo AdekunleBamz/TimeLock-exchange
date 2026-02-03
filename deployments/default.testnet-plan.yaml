@@ -3,7 +3,8 @@ id: 0
 name: Testnet deployment - TimeLock Exchange v2.0
 network: testnet
 stacks-node: "https://api.testnet.hiro.so"
-bitcoin-node: "http://blockstack:blockstacksystem@bitcoin-testnet.blockstack.com:18332"
+# Bitcoin node URL - set via environment or Clarinet config
+# bitcoin-node: "${BITCOIN_NODE_URL}"
 plan:
   batches:
     # Batch 0: Core infrastructure contracts
