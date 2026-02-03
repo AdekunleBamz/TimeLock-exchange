@@ -214,6 +214,86 @@
 (define-read-only (get-passkey-info (user principal) (key-index uint))
   (map-get? user-passkeys { user: user, key-index: key-index }))
 
+;; ============================================
+;; PASSKEY REVOCATION
+;; ============================================
+
+;; Revoke a passkey (deactivate it)
+(define-public (revoke-passkey (key-index uint))
+  (let (
+    (passkey-data (unwrap! (map-get? user-passkeys { user: tx-sender, key-index: key-index }) ERR_NOT_FOUND))
+  )
+    (asserts! (get is-active passkey-data) ERR_NOT_FOUND)
+    
+    ;; Update passkey to inactive
+    (map-set user-passkeys 
+      { user: tx-sender, key-index: key-index }
+      (merge passkey-data { is-active: false })
+    )
+    
+    (print {
+      event: "passkey-revoked",
+      user: tx-sender,
+      key-index: key-index,
+      name: (get name passkey-data),
+      timestamp: stacks-block-time
+    })
+    (ok true)))
+
+;; Revoke all passkeys (emergency)
+(define-public (revoke-all-passkeys)
+  (let (
+    (key-count (default-to u0 (map-get? user-passkey-count tx-sender)))
+  )
+    (asserts! (> key-count u0) ERR_NOT_FOUND)
+    
+    ;; Revoke each passkey (up to 5)
+    (and (>= key-count u1) (revoke-passkey-internal tx-sender u0))
+    (and (>= key-count u2) (revoke-passkey-internal tx-sender u1))
+    (and (>= key-count u3) (revoke-passkey-internal tx-sender u2))
+    (and (>= key-count u4) (revoke-passkey-internal tx-sender u3))
+    (and (>= key-count u5) (revoke-passkey-internal tx-sender u4))
+    
+    ;; Clear legacy registry
+    (map-delete passkey-registry tx-sender)
+    
+    (print {
+      event: "all-passkeys-revoked",
+      user: tx-sender,
+      count: key-count,
+      timestamp: stacks-block-time
+    })
+    (ok key-count)))
+
+;; Internal helper to revoke passkey
+(define-private (revoke-passkey-internal (user principal) (key-index uint))
+  (match (map-get? user-passkeys { user: user, key-index: key-index })
+    passkey-data (begin
+      (map-set user-passkeys 
+        { user: user, key-index: key-index }
+        (merge passkey-data { is-active: false })
+      )
+      true)
+    false))
+
+;; Check if user has any active passkeys
+(define-read-only (has-active-passkey (user principal))
+  (let (
+    (key-count (default-to u0 (map-get? user-passkey-count user)))
+  )
+    (or
+      (is-passkey-active user u0)
+      (is-passkey-active user u1)
+      (is-passkey-active user u2)
+      (is-passkey-active user u3)
+      (is-passkey-active user u4))))
+
+;; Helper to check if specific passkey is active
+(define-private (is-passkey-active (user principal) (key-index uint))
+  (match (map-get? user-passkeys { user: user, key-index: key-index })
+    passkey-data (get is-active passkey-data)
+    false))
+
 ;; Verify signature with any active passkey
 (define-public (verify-multi-passkey-signature
   (message-hash (buff 32))
