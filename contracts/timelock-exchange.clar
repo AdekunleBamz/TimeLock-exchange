@@ -48,8 +48,75 @@
 (define-data-var position-counter uint u0)
 (define-data-var total-locked-value uint u0)
 (define-data-var contract-paused bool false)
+(define-data-var pause-reason (string-ascii 100) "")
+(define-data-var pause-timestamp uint u0)
 (define-map passkey-registry principal (buff 33))
 (define-map approved-bots principal bool)
+(define-map emergency-admins principal bool)
+
+;; ============================================
+;; EMERGENCY CONTROLS
+;; ============================================
+
+;; Add emergency admin (owner only)
+(define-public (add-emergency-admin (admin principal))
+  (begin
+    (asserts! (is-eq tx-sender CONTRACT_OWNER) ERR_NOT_AUTHORIZED)
+    (map-set emergency-admins admin true)
+    (print { event: "emergency-admin-added", admin: admin, timestamp: stacks-block-time })
+    (ok true)))
+
+;; Remove emergency admin (owner only)
+(define-public (remove-emergency-admin (admin principal))
+  (begin
+    (asserts! (is-eq tx-sender CONTRACT_OWNER) ERR_NOT_AUTHORIZED)
+    (map-delete emergency-admins admin)
+    (print { event: "emergency-admin-removed", admin: admin, timestamp: stacks-block-time })
+    (ok true)))
+
+;; Check if caller is emergency admin
+(define-read-only (is-emergency-admin (caller principal))
+  (or (is-eq caller CONTRACT_OWNER) (default-to false (map-get? emergency-admins caller))))
+
+;; Pause contract (owner or emergency admin)
+(define-public (pause-contract (reason (string-ascii 100)))
+  (begin
+    (asserts! (is-emergency-admin tx-sender) ERR_NOT_AUTHORIZED)
+    (asserts! (not (var-get contract-paused)) ERR_ALREADY_EXISTS)
+    (var-set contract-paused true)
+    (var-set pause-reason reason)
+    (var-set pause-timestamp stacks-block-time)
+    (print {
+      event: "contract-paused",
+      paused-by: tx-sender,
+      reason: reason,
+      timestamp: stacks-block-time
+    })
+    (ok true)))
+
+;; Unpause contract (owner only for security)
+(define-public (unpause-contract)
+  (begin
+    (asserts! (is-eq tx-sender CONTRACT_OWNER) ERR_NOT_AUTHORIZED)
+    (asserts! (var-get contract-paused) ERR_NOT_FOUND)
+    (var-set contract-paused false)
+    (print {
+      event: "contract-unpaused",
+      unpaused-by: tx-sender,
+      was-paused-for: (- stacks-block-time (var-get pause-timestamp)),
+      timestamp: stacks-block-time
+    })
+    (var-set pause-reason "")
+    (var-set pause-timestamp u0)
+    (ok true)))
+
+;; Get pause status
+(define-read-only (get-pause-status)
+  {
+    is-paused: (var-get contract-paused),
+    reason: (var-get pause-reason),
+    paused-since: (var-get pause-timestamp)
+  })
 
 ;; CLARITY 4 FUNCTION #1: stacks-block-time
 (define-read-only (get-current-time)
