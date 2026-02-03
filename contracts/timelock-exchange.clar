@@ -21,6 +21,8 @@
 (define-constant MAX_LOCK_DURATION u31536000)    ;; 1 year in seconds
 (define-constant MIN_DEPOSIT_AMOUNT u1000000)    ;; 1 STX minimum (in micro-STX)
 (define-constant BASE_FEE_BPS u50)               ;; 0.5% base fee
+(define-constant EARLY_WITHDRAWAL_PENALTY_BPS u1000)  ;; 10% penalty for early withdrawal
+(define-constant MAX_PENALTY_BPS u2500)          ;; 25% maximum penalty
 
 ;; Position data structure
 (define-map positions
@@ -269,6 +271,77 @@
     })
 
     (ok (get amount position))))
+
+;; Calculate early withdrawal penalty based on remaining time
+(define-read-only (calculate-early-withdrawal-penalty (position-id uint))
+  (let (
+    (position (unwrap! (map-get? positions position-id) (err u0)))
+    (current-time stacks-block-time)
+    (time-remaining (if (>= current-time (get unlock-time position))
+                        u0
+                        (- (get unlock-time position) current-time)))
+    (total-lock-duration (get lock-duration position))
+    (amount (get amount position))
+    ;; Penalty scales with remaining time (more time = higher penalty)
+    (penalty-ratio (/ (* time-remaining u10000) total-lock-duration))
+    (base-penalty (/ (* amount EARLY_WITHDRAWAL_PENALTY_BPS) u10000))
+    (scaled-penalty (/ (* base-penalty penalty-ratio) u10000))
+    ;; Cap at maximum penalty
+    (max-penalty-amount (/ (* amount MAX_PENALTY_BPS) u10000))
+    (final-penalty (if (> scaled-penalty max-penalty-amount) max-penalty-amount scaled-penalty))
+  )
+    (ok {
+      penalty-amount: final-penalty,
+      penalty-bps: (/ (* final-penalty u10000) amount),
+      amount-after-penalty: (- amount final-penalty),
+      time-remaining: time-remaining
+    })))
+
+;; Early withdraw with penalty
+(define-public (early-withdraw (position-id uint))
+  (let (
+    (position (unwrap! (map-get? positions position-id) ERR_NOT_FOUND))
+    (current-time stacks-block-time)
+    (penalty-info (unwrap! (calculate-early-withdrawal-penalty position-id) ERR_NOT_FOUND))
+    (penalty-amount (get penalty-amount penalty-info))
+    (amount-after-penalty (get amount-after-penalty penalty-info))
+  )
+    ;; Validation
+    (asserts! (not (var-get contract-paused)) ERR_CONTRACT_PAUSED)
+    (asserts! (is-eq (get owner position) tx-sender) ERR_NOT_AUTHORIZED)
+    (asserts! (get is-active position) ERR_NOT_FOUND)
+    (asserts! (< current-time (get unlock-time position)) ERR_POSITION_LOCKED) ;; Must be before unlock time
+    (asserts! (> amount-after-penalty u0) ERR_ZERO_AMOUNT)
+
+    ;; Transfer amount minus penalty to owner
+    (try! (as-contract (stx-transfer? amount-after-penalty tx-sender (get owner position))))
+
+    ;; Transfer penalty to fee collector (or keep in contract for now)
+    ;; In production, this would go to a fee distribution contract
+
+    ;; Update position to inactive
+    (map-set positions position-id (merge position { is-active: false }))
+
+    ;; Update total locked value
+    (var-set total-locked-value (- (var-get total-locked-value) (get amount position)))
+
+    ;; Emit event
+    (print {
+      event: "position-early-withdrawn",
+      position-id: position-id,
+      owner: tx-sender,
+      original-amount: (get amount position),
+      penalty-amount: penalty-amount,
+      amount-received: amount-after-penalty,
+      penalty-bps: (get penalty-bps penalty-info),
+      time-remaining: (get time-remaining penalty-info),
+      timestamp: current-time
+    })
+
+    (ok {
+      amount-received: amount-after-penalty,
+      penalty-paid: penalty-amount
+    })))
 
 ;; Demo function that uses all Clarity 4 functions
 (define-public (comprehensive-demo
