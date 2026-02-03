@@ -687,6 +687,79 @@
 (define-private (not-matching-position (pid uint))
   (not (is-eq pid (var-get filter-target-position))))
 
+;; ============================================
+;; POSITION EXTENSION
+;; ============================================
+
+;; Extend lock duration of an existing position
+(define-public (extend-position (position-id uint) (additional-duration uint))
+  (let (
+    (position (unwrap! (map-get? positions position-id) ERR_NOT_FOUND))
+    (current-time stacks-block-time)
+    (new-unlock-time (+ (get unlock-time position) additional-duration))
+    (new-total-duration (+ (get lock-duration position) additional-duration))
+  )
+    ;; Validation
+    (asserts! (not (var-get contract-paused)) ERR_CONTRACT_PAUSED)
+    (asserts! (is-eq (get owner position) tx-sender) ERR_NOT_AUTHORIZED)
+    (asserts! (get is-active position) ERR_NOT_FOUND)
+    (asserts! (>= additional-duration MIN_LOCK_DURATION) ERR_INVALID_DURATION)
+    (asserts! (<= new-total-duration MAX_LOCK_DURATION) ERR_INVALID_DURATION)
+
+    ;; Update position with extended duration
+    (map-set positions position-id (merge position { 
+      unlock-time: new-unlock-time,
+      lock-duration: new-total-duration
+    }))
+
+    ;; Emit event
+    (print {
+      event: "position-extended",
+      position-id: position-id,
+      owner: tx-sender,
+      old-unlock-time: (get unlock-time position),
+      new-unlock-time: new-unlock-time,
+      additional-duration: additional-duration,
+      timestamp: current-time
+    })
+
+    (ok new-unlock-time)))
+
+;; Add more STX to an existing position
+(define-public (add-to-position (position-id uint) (additional-amount uint))
+  (let (
+    (position (unwrap! (map-get? positions position-id) ERR_NOT_FOUND))
+    (current-time stacks-block-time)
+    (new-amount (+ (get amount position) additional-amount))
+  )
+    ;; Validation
+    (asserts! (not (var-get contract-paused)) ERR_CONTRACT_PAUSED)
+    (asserts! (is-eq (get owner position) tx-sender) ERR_NOT_AUTHORIZED)
+    (asserts! (get is-active position) ERR_NOT_FOUND)
+    (asserts! (> additional-amount u0) ERR_ZERO_AMOUNT)
+
+    ;; Transfer additional STX to contract
+    (try! (stx-transfer? additional-amount tx-sender (as-contract tx-sender)))
+
+    ;; Update position with additional amount
+    (map-set positions position-id (merge position { amount: new-amount }))
+
+    ;; Update total locked value
+    (var-set total-locked-value (+ (var-get total-locked-value) additional-amount))
+
+    ;; Emit event
+    (print {
+      event: "position-topped-up",
+      position-id: position-id,
+      owner: tx-sender,
+      old-amount: (get amount position),
+      additional-amount: additional-amount,
+      new-amount: new-amount,
+      timestamp: current-time
+    })
+
+    (ok new-amount)))
+
 ;; Demo function that uses all Clarity 4 functions
 (define-public (comprehensive-demo
   (bot-contract principal)
