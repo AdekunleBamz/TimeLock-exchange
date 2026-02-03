@@ -197,6 +197,79 @@
 
     (ok position-id)))
 
+;; Unlock a position after lock period expires
+(define-public (unlock-position (position-id uint))
+  (let (
+    (position (unwrap! (map-get? positions position-id) ERR_NOT_FOUND))
+    (current-time stacks-block-time)
+  )
+    ;; Validation
+    (asserts! (not (var-get contract-paused)) ERR_CONTRACT_PAUSED)
+    (asserts! (is-eq (get owner position) tx-sender) ERR_NOT_AUTHORIZED)
+    (asserts! (get is-active position) ERR_NOT_FOUND)
+    (asserts! (>= current-time (get unlock-time position)) ERR_POSITION_LOCKED)
+
+    ;; Transfer STX back to owner
+    (try! (as-contract (stx-transfer? (get amount position) tx-sender (get owner position))))
+
+    ;; Update position to inactive
+    (map-set positions position-id (merge position { is-active: false }))
+
+    ;; Update total locked value
+    (var-set total-locked-value (- (var-get total-locked-value) (get amount position)))
+
+    ;; Emit event
+    (print {
+      event: "position-unlocked",
+      position-id: position-id,
+      owner: tx-sender,
+      amount: (get amount position),
+      timestamp: current-time
+    })
+
+    (ok (get amount position))))
+
+;; Unlock position with passkey verification
+(define-public (unlock-position-with-passkey 
+  (position-id uint)
+  (message-hash (buff 32))
+  (signature (buff 64)))
+  (let (
+    (position (unwrap! (map-get? positions position-id) ERR_NOT_FOUND))
+    (current-time stacks-block-time)
+    (user-pubkey (unwrap! (map-get? passkey-registry tx-sender) ERR_NOT_AUTHORIZED))
+  )
+    ;; Validation
+    (asserts! (not (var-get contract-paused)) ERR_CONTRACT_PAUSED)
+    (asserts! (is-eq (get owner position) tx-sender) ERR_NOT_AUTHORIZED)
+    (asserts! (get is-active position) ERR_NOT_FOUND)
+    (asserts! (get passkey-protected position) ERR_NOT_AUTHORIZED)
+    (asserts! (>= current-time (get unlock-time position)) ERR_POSITION_LOCKED)
+    
+    ;; Verify passkey signature (Clarity 4)
+    (asserts! (secp256r1-verify message-hash signature user-pubkey) ERR_NOT_AUTHORIZED)
+
+    ;; Transfer STX back to owner
+    (try! (as-contract (stx-transfer? (get amount position) tx-sender (get owner position))))
+
+    ;; Update position to inactive
+    (map-set positions position-id (merge position { is-active: false }))
+
+    ;; Update total locked value
+    (var-set total-locked-value (- (var-get total-locked-value) (get amount position)))
+
+    ;; Emit event
+    (print {
+      event: "position-unlocked-with-passkey",
+      position-id: position-id,
+      owner: tx-sender,
+      amount: (get amount position),
+      passkey-verified: true,
+      timestamp: current-time
+    })
+
+    (ok (get amount position))))
+
 ;; Demo function that uses all Clarity 4 functions
 (define-public (comprehensive-demo
   (bot-contract principal)
