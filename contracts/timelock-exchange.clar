@@ -122,11 +122,108 @@
 (define-read-only (get-current-time)
   stacks-block-time)
 
+;; ============================================
+;; MULTI-PASSKEY SUPPORT
+;; ============================================
+
+;; Store multiple passkeys per user (up to 5)
+(define-map user-passkeys 
+  { user: principal, key-index: uint }
+  { 
+    public-key: (buff 33),
+    name: (string-ascii 50),
+    created-at: uint,
+    is-active: bool
+  }
+)
+(define-map user-passkey-count principal uint)
+
 ;; CLARITY 4 FUNCTION #2: secp256r1-verify
+;; Register a new passkey (supports multiple devices)
 (define-public (register-passkey (public-key (buff 33)))
-  (begin
-    (map-set passkey-registry tx-sender public-key)
-    (ok true)))
+  (let (
+    (key-count (default-to u0 (map-get? user-passkey-count tx-sender)))
+    (new-index key-count)
+  )
+    (asserts! (< key-count u5) ERR_ALREADY_EXISTS) ;; Max 5 passkeys per user
+    
+    ;; Store in legacy registry for backwards compatibility
+    (if (is-eq key-count u0)
+      (map-set passkey-registry tx-sender public-key)
+      true
+    )
+    
+    ;; Store in multi-passkey registry
+    (map-set user-passkeys 
+      { user: tx-sender, key-index: new-index }
+      {
+        public-key: public-key,
+        name: "Default",
+        created-at: stacks-block-time,
+        is-active: true
+      }
+    )
+    (map-set user-passkey-count tx-sender (+ key-count u1))
+    
+    (print {
+      event: "passkey-registered",
+      user: tx-sender,
+      key-index: new-index,
+      timestamp: stacks-block-time
+    })
+    (ok new-index)))
+
+;; Register passkey with custom name
+(define-public (register-named-passkey (public-key (buff 33)) (name (string-ascii 50)))
+  (let (
+    (key-count (default-to u0 (map-get? user-passkey-count tx-sender)))
+    (new-index key-count)
+  )
+    (asserts! (< key-count u5) ERR_ALREADY_EXISTS)
+    
+    (if (is-eq key-count u0)
+      (map-set passkey-registry tx-sender public-key)
+      true
+    )
+    
+    (map-set user-passkeys 
+      { user: tx-sender, key-index: new-index }
+      {
+        public-key: public-key,
+        name: name,
+        created-at: stacks-block-time,
+        is-active: true
+      }
+    )
+    (map-set user-passkey-count tx-sender (+ key-count u1))
+    
+    (print {
+      event: "passkey-registered",
+      user: tx-sender,
+      key-index: new-index,
+      name: name,
+      timestamp: stacks-block-time
+    })
+    (ok new-index)))
+
+;; Get user's passkey count
+(define-read-only (get-user-passkey-count (user principal))
+  (default-to u0 (map-get? user-passkey-count user)))
+
+;; Get specific passkey info
+(define-read-only (get-passkey-info (user principal) (key-index uint))
+  (map-get? user-passkeys { user: user, key-index: key-index }))
+
+;; Verify signature with any active passkey
+(define-public (verify-multi-passkey-signature
+  (message-hash (buff 32))
+  (signature (buff 64))
+  (key-index uint))
+  (let (
+    (passkey-data (unwrap! (map-get? user-passkeys { user: tx-sender, key-index: key-index }) ERR_NOT_FOUND))
+  )
+    (asserts! (get is-active passkey-data) ERR_NOT_AUTHORIZED)
+    (ok (secp256r1-verify message-hash signature (get public-key passkey-data)))))
 
 (define-public (verify-signature-demo
   (message-hash (buff 32))
