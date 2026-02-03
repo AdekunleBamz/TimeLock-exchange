@@ -88,6 +88,115 @@
 (define-public (demo-to-ascii (value uint))
   (ok (unwrap! (to-ascii? value) ERR_CONVERSION)))
 
+;; ============================================
+;; CORE POSITION FUNCTIONS
+;; ============================================
+
+;; Helper: Add position ID to user's list
+(define-private (add-position-to-user (user principal) (position-id uint))
+  (let (
+    (current-positions (default-to (list) (map-get? user-positions user)))
+    (current-count (default-to u0 (map-get? user-position-count user)))
+  )
+    (map-set user-positions user (unwrap! (as-max-len? (append current-positions position-id) u100) false))
+    (map-set user-position-count user (+ current-count u1))
+    true))
+
+;; Create a new time-locked position
+(define-public (create-position (amount uint) (lock-duration uint))
+  (let (
+    (position-id (+ (var-get position-counter) u1))
+    (unlock-time (+ stacks-block-time lock-duration))
+    (current-time stacks-block-time)
+  )
+    ;; Validation
+    (asserts! (not (var-get contract-paused)) ERR_CONTRACT_PAUSED)
+    (asserts! (>= amount MIN_DEPOSIT_AMOUNT) ERR_INVALID_AMOUNT)
+    (asserts! (>= lock-duration MIN_LOCK_DURATION) ERR_INVALID_DURATION)
+    (asserts! (<= lock-duration MAX_LOCK_DURATION) ERR_INVALID_DURATION)
+
+    ;; Transfer STX to contract
+    (try! (stx-transfer? amount tx-sender (as-contract tx-sender)))
+
+    ;; Create position record
+    (map-set positions position-id {
+      owner: tx-sender,
+      amount: amount,
+      lock-duration: lock-duration,
+      created-at: current-time,
+      unlock-time: unlock-time,
+      is-active: true,
+      asset-type: "STX",
+      passkey-protected: false
+    })
+
+    ;; Update counters
+    (var-set position-counter position-id)
+    (var-set total-locked-value (+ (var-get total-locked-value) amount))
+    (asserts! (add-position-to-user tx-sender position-id) ERR_NOT_FOUND)
+
+    ;; Emit event
+    (print {
+      event: "position-created",
+      position-id: position-id,
+      owner: tx-sender,
+      amount: amount,
+      lock-duration: lock-duration,
+      unlock-time: unlock-time,
+      timestamp: current-time
+    })
+
+    (ok position-id)))
+
+;; Create position with passkey protection
+(define-public (create-position-with-passkey (amount uint) (lock-duration uint))
+  (let (
+    (position-id (+ (var-get position-counter) u1))
+    (unlock-time (+ stacks-block-time lock-duration))
+    (current-time stacks-block-time)
+    (user-passkey (map-get? passkey-registry tx-sender))
+  )
+    ;; Validation
+    (asserts! (not (var-get contract-paused)) ERR_CONTRACT_PAUSED)
+    (asserts! (is-some user-passkey) ERR_NOT_AUTHORIZED)
+    (asserts! (>= amount MIN_DEPOSIT_AMOUNT) ERR_INVALID_AMOUNT)
+    (asserts! (>= lock-duration MIN_LOCK_DURATION) ERR_INVALID_DURATION)
+    (asserts! (<= lock-duration MAX_LOCK_DURATION) ERR_INVALID_DURATION)
+
+    ;; Transfer STX to contract
+    (try! (stx-transfer? amount tx-sender (as-contract tx-sender)))
+
+    ;; Create position record with passkey protection
+    (map-set positions position-id {
+      owner: tx-sender,
+      amount: amount,
+      lock-duration: lock-duration,
+      created-at: current-time,
+      unlock-time: unlock-time,
+      is-active: true,
+      asset-type: "STX",
+      passkey-protected: true
+    })
+
+    ;; Update counters
+    (var-set position-counter position-id)
+    (var-set total-locked-value (+ (var-get total-locked-value) amount))
+    (asserts! (add-position-to-user tx-sender position-id) ERR_NOT_FOUND)
+
+    ;; Emit event
+    (print {
+      event: "position-created-with-passkey",
+      position-id: position-id,
+      owner: tx-sender,
+      amount: amount,
+      lock-duration: lock-duration,
+      unlock-time: unlock-time,
+      passkey-protected: true,
+      timestamp: current-time
+    })
+
+    (ok position-id)))
+
 ;; Demo function that uses all Clarity 4 functions
 (define-public (comprehensive-demo
   (bot-contract principal)
