@@ -1,8 +1,8 @@
 ---
 id: 0
-name: Mainnet deployment - TimeLock Exchange v2.0
-network: mainnet
-stacks-node: "https://api.mainnet.hiro.so"
+name: Testnet deployment - TimeLock Exchange v2.0
+network: testnet
+stacks-node: "https://api.testnet.hiro.so"
 # Bitcoin node URL - set via environment or Clarinet config
 # bitcoin-node: "${BITCOIN_NODE_URL}"
 plan:
@@ -12,7 +12,7 @@ plan:
       transactions:
         - contract-publish:
             contract-name: fee-collector
-            expected-sender: SP3FKNEZ86RG5RT7SZ5FBRGH85FZNG94ZH1MCGG6N
+            expected-sender: ST3FKNEZ86RG5RT7SZ5FBRGH85FZNG94ZHTEST
             cost: 15000
             path: contracts/fee-collector.clar
             anchor-block-only: true
@@ -23,7 +23,7 @@ plan:
       transactions:
         - contract-publish:
             contract-name: position-nft
-            expected-sender: SP3FKNEZ86RG5RT7SZ5FBRGH85FZNG94ZH1MCGG6N
+            expected-sender: ST3FKNEZ86RG5RT7SZ5FBRGH85FZNG94ZHTEST
             cost: 35000
             path: contracts/position-nft.clar
             anchor-block-only: true
@@ -34,7 +34,7 @@ plan:
       transactions:
         - contract-publish:
             contract-name: timelock-exchange
-            expected-sender: SP3FKNEZ86RG5RT7SZ5FBRGH85FZNG94ZH1MCGG6N
+            expected-sender: ST3FKNEZ86RG5RT7SZ5FBRGH85FZNG94ZHTEST
             cost: 85000
             path: contracts/timelock-exchange.clar
             anchor-block-only: true

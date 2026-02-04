@@ -15,15 +15,37 @@ import {
 import { LOCK_DURATIONS } from '@/lib/constants';
 import type { Position } from '@/lib/types';
 
+// New integrated components
+import { PositionCard } from './PositionCard';
+import { CreatePositionModal } from './CreatePositionModal';
+import { PasskeyManager } from './PasskeyManager';
+import { StatsDashboard } from './StatsDashboard';
+
+// Hooks
+import { usePositions } from '@/hooks/usePositions';
+import { usePasskeys } from '@/hooks/usePasskeys';
+import { useFees } from '@/hooks/useFees';
+import { useContractStatus } from '@/hooks/useContractStatus';
+
+// UI Components
+import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/Tabs';
+import { Badge } from './ui/Badge';
+import { Tooltip } from './ui/Tooltip';
+
 export function TimeLockDashboard() {
   const { isConnected, stxAddress } = useWallet();
   
-  const [positions, setPositions] = useState<Position[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  // Use new hooks
+  const { positions, isLoading: positionsLoading, totalLocked, refetch: refetchPositions } = usePositions();
+  const { passkeys, passkeyCount, canAddMore } = usePasskeys();
+  const { stats: feeStats, tiers } = useFees();
+  const { isPaused, isAdmin, pauseStatus } = useContractStatus();
+  
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [activeTab, setActiveTab] = useState('positions');
   const [lastTxId, setLastTxId] = useState<string | null>(null);
   
-  // Stats
+  // Legacy stats for backward compatibility
   const [stats, setStats] = useState({
     positionCount: 0,
     demoCount: 0,
@@ -38,6 +60,9 @@ export function TimeLockDashboard() {
     duration: '7',
     usePasskey: false,
   });
+
+  // Loading state combining all hooks
+  const isLoading = positionsLoading;
 
   // Load contract stats
   const loadStats = useCallback(async () => {
@@ -69,114 +94,35 @@ export function TimeLockDashboard() {
     loadStats();
   }, [loadStats]);
 
-  // Create position handler
+  // Create position handler - now handled by CreatePositionModal
   const handleCreatePosition = async () => {
-    if (!isConnected || !stxAddress) {
-      alert('Please connect your wallet first');
-      return;
-    }
-
-    const amount = parseFloat(newPosition.amount);
-    if (!amount || amount <= 0) {
-      alert('Please enter a valid amount');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const lockSeconds = LOCK_DURATIONS[newPosition.duration as keyof typeof LOCK_DURATIONS];
-      
-      const result = await createPosition(
-        {
-          amount,
-          lockDuration: lockSeconds,
-          usePasskey: newPosition.usePasskey,
-        },
-        stxAddress
-      );
-
-      if (result.success) {
-        setLastTxId(result.txId);
-        alert(`Position created! TX: ${result.txId.slice(0, 10)}...`);
-        setShowCreateForm(false);
-        setNewPosition({ amount: '', duration: '7', usePasskey: false });
-        // Reload stats after a delay
-        setTimeout(loadStats, 3000);
-      } else {
-        alert(result.error || 'Failed to create position');
-      }
-    } catch (error) {
-      console.error('Error creating position:', error);
-      alert('Error creating position');
-    }
-    setIsLoading(false);
+    // Legacy handler - modal handles this now
+    setShowCreateModal(true);
   };
 
-  // Passkey registration handler
+  // Passkey registration - now handled by PasskeyManager
   const handleRegisterPasskey = async () => {
-    if (!isConnected) {
-      alert('Please connect your wallet first');
-      return;
-    }
-
-    try {
-      // WebAuthn passkey registration
-      const publicKeyCredential = await navigator.credentials.create({
-        publicKey: {
-          challenge: crypto.getRandomValues(new Uint8Array(32)),
-          rp: { name: 'TimeLock Exchange' },
-          user: {
-            id: crypto.getRandomValues(new Uint8Array(16)),
-            name: stxAddress || 'user@timelock.exchange',
-            displayName: 'TimeLock User',
-          },
-          pubKeyCredParams: [{ alg: -7, type: 'public-key' }],
-          timeout: 60000,
-          attestation: 'direct',
-        },
-      }) as PublicKeyCredential;
-
-      // Extract public key from credential
-      const response = publicKeyCredential.response as AuthenticatorAttestationResponse;
-      const publicKey = new Uint8Array(response.getPublicKey()!);
-      
-      // Register on-chain
-      const result = await registerPasskey(publicKey);
-      
-      if (result.success) {
-        setLastTxId(result.txId);
-        alert(`Passkey registered! TX: ${result.txId.slice(0, 10)}...`);
-      } else {
-        alert(result.error || 'Failed to register passkey');
-      }
-    } catch (error) {
-      console.error('Passkey registration failed:', error);
-      alert('Passkey registration failed - your browser may not support WebAuthn');
-    }
+    setActiveTab('passkeys');
   };
 
   return (
     <div className="max-w-6xl mx-auto">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-sm font-medium text-gray-500 mb-1">Total Positions</h3>
-          <p className="text-3xl font-bold text-blue-600">{stats.positionCount}</p>
+      {/* Pause Warning Banner */}
+      {isPaused && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex items-center gap-3">
+          <span className="text-2xl">⚠️</span>
+          <div>
+            <p className="font-semibold text-red-800">Contract Paused</p>
+            <p className="text-sm text-red-600">
+              New positions and withdrawals are temporarily disabled.
+              {pauseStatus?.pausedBy && ` Paused by: ${pauseStatus.pausedBy.slice(0, 10)}...`}
+            </p>
+          </div>
         </div>
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-sm font-medium text-gray-500 mb-1">NFTs Minted</h3>
-          <p className="text-3xl font-bold text-green-600">{stats.lastTokenId}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-sm font-medium text-gray-500 mb-1">Demo Calls</h3>
-          <p className="text-3xl font-bold text-purple-600">{stats.demoCount}</p>
-          <p className="text-xs text-gray-400 mt-1">Clarity 4 functions</p>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-sm font-medium text-gray-500 mb-1">Fees Collected</h3>
-          <p className="text-3xl font-bold text-orange-600">{stats.totalFees.toFixed(2)} STX</p>
-        </div>
-      </div>
+      )}
+
+      {/* Stats Dashboard */}
+      <StatsDashboard />
 
       {/* Block Time Display */}
       {stats.blockTime > 0 && (
@@ -188,26 +134,21 @@ export function TimeLockDashboard() {
         </div>
       )}
 
-      {/* Action Buttons */}
+      {/* Main Action Buttons */}
       <div className="flex flex-wrap gap-4 mb-8 justify-center">
         <button
-          onClick={() => setShowCreateForm(!showCreateForm)}
-          disabled={!isConnected}
-          className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+          onClick={() => setShowCreateModal(true)}
+          disabled={!isConnected || isPaused}
+          className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-semibold transition-colors flex items-center gap-2"
         >
-          {showCreateForm ? '✕ Cancel' : '🔒 Create TimeLock Position'}
+          <span>🔒</span> Create TimeLock Position
         </button>
 
         <button
-          onClick={handleRegisterPasskey}
-          disabled={!isConnected}
-          className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
-        >
-          🔑 Register Passkey
-        </button>
-
-        <button
-          onClick={loadStats}
+          onClick={() => {
+            loadStats();
+            refetchPositions();
+          }}
           disabled={isLoading}
           className="bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
         >
@@ -248,149 +189,178 @@ export function TimeLockDashboard() {
         </div>
       )}
 
-      {/* Create Position Form */}
-      {showCreateForm && isConnected && (
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Create TimeLock Position</h2>
+      {/* Tabbed Content */}
+      <Tabs defaultValue="positions" className="mb-8">
+        <TabsList className="mb-4">
+          <TabsTrigger value="positions">
+            Positions {positions.length > 0 && <Badge variant="primary" size="sm" className="ml-2">{positions.length}</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="passkeys">
+            Passkeys {passkeyCount > 0 && <Badge variant="success" size="sm" className="ml-2">{passkeyCount}</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="fees">Fee Tiers</TabsTrigger>
+          {isAdmin && <TabsTrigger value="admin">Admin</TabsTrigger>}
+        </TabsList>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Amount (STX)
-              </label>
-              <input
-                type="number"
-                value={newPosition.amount}
-                onChange={(e) => setNewPosition({ ...newPosition, amount: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="100.00"
-                min="0.01"
-                step="0.01"
-              />
+        <TabsContent value="positions">
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-900">Your TimeLock Positions</h2>
+              <p className="text-sm text-gray-500">
+                Total Locked: <span className="font-semibold">{Number(totalLocked) / 1_000_000} STX</span>
+              </p>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Lock Duration
-              </label>
-              <select
-                value={newPosition.duration}
-                onChange={(e) => setNewPosition({ ...newPosition, duration: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="7">7 Days</option>
-                <option value="30">30 Days</option>
-                <option value="90">90 Days (3 months)</option>
-                <option value="180">180 Days (6 months)</option>
-                <option value="365">365 Days (1 year)</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="mt-4">
-            <label className="flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={newPosition.usePasskey}
-                onChange={(e) => setNewPosition({ ...newPosition, usePasskey: e.target.checked })}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <span className="ml-2 text-sm text-gray-700">
-                Use Passkey Authentication (Clarity 4 secp256r1-verify)
-              </span>
-            </label>
-          </div>
-
-          <div className="mt-6 flex gap-4">
-            <button
-              onClick={handleCreatePosition}
-              disabled={isLoading || !newPosition.amount}
-              className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
-            >
-              {isLoading ? 'Creating...' : 'Create Position'}
-            </button>
-
-            <button
-              onClick={() => setShowCreateForm(false)}
-              className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Positions List */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Your TimeLock Positions</h2>
-
-        {positions.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="text-4xl mb-4">🔒</div>
-            <p className="text-gray-500">No positions found. Create your first TimeLock position!</p>
-            <p className="text-sm text-gray-400 mt-2">
-              Lock your STX and receive a position NFT
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {positions.map((position) => (
-              <div key={position.id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-semibold text-gray-900">Position #{position.id}</h3>
-                    <p className="text-sm text-gray-600">
-                      {position.amount} {position.asset} • {position.duration} days lock
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Created: {new Date(position.createdAt * 1000).toLocaleDateString()}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Unlocks: {new Date(position.unlockTime * 1000).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <span
-                      className={`px-2 py-1 rounded text-xs font-medium ${
-                        position.isActive
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}
-                    >
-                      {position.isActive ? '🔒 Active' : '🔓 Unlocked'}
-                    </span>
-                  </div>
-                </div>
+            {positions.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="text-4xl mb-4">🔒</div>
+                <p className="text-gray-500">No positions found. Create your first TimeLock position!</p>
+                <p className="text-sm text-gray-400 mt-2">
+                  Lock your STX and receive a position NFT
+                </p>
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  disabled={!isConnected || isPaused}
+                  className="mt-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg text-sm"
+                >
+                  Create First Position
+                </button>
               </div>
-            ))}
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {positions.map((position) => (
+                  <PositionCard
+                    key={position.id}
+                    position={{
+                      id: position.id,
+                      amount: BigInt(Math.floor(position.amount * 1_000_000)),
+                      unlockTime: BigInt(position.unlockTime),
+                      owner: stxAddress || '',
+                      tier: Math.floor(position.duration / 30) || 1,
+                      feesPaid: BigInt(0),
+                      createdAt: BigInt(position.createdAt),
+                      isUnlocked: !position.isActive,
+                    }}
+                    onUnlock={() => {
+                      // Handle unlock
+                      console.log('Unlock position', position.id);
+                    }}
+                    onEarlyWithdraw={() => {
+                      // Handle early withdrawal
+                      console.log('Early withdraw position', position.id);
+                    }}
+                  />
+                ))}
+              </div>
+            )}
           </div>
+        </TabsContent>
+
+        <TabsContent value="passkeys">
+          <PasskeyManager />
+        </TabsContent>
+
+        <TabsContent value="fees">
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Fee Tiers</h2>
+            <p className="text-sm text-gray-600 mb-6">
+              Longer lock periods earn lower fees. Choose the tier that fits your needs.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {tiers.map((tier) => (
+                <div key={tier.name} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-semibold text-gray-900">{tier.name}</h3>
+                    <Badge variant={tier.feePercent <= 25 ? 'success' : tier.feePercent <= 50 ? 'warning' : 'default'}>
+                      {(tier.feePercent / 100).toFixed(2)}% fee
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-gray-600">{tier.description}</p>
+                  <p className="text-xs text-gray-400 mt-2">
+                    {tier.minDays} - {tier.maxDays === Infinity ? '∞' : tier.maxDays} days
+                  </p>
+                </div>
+              ))}
+            </div>
+            {feeStats && (
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <p className="text-sm text-gray-600">
+                  Total fees collected: <span className="font-semibold">{Number(feeStats.totalCollected) / 1_000_000} STX</span>
+                </p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        {isAdmin && (
+          <TabsContent value="admin">
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Admin Controls</h2>
+              <div className="flex gap-4">
+                <button
+                  className={`px-4 py-2 rounded-lg font-medium ${
+                    isPaused
+                      ? 'bg-green-600 hover:bg-green-700 text-white'
+                      : 'bg-red-600 hover:bg-red-700 text-white'
+                  }`}
+                >
+                  {isPaused ? '▶️ Resume Contract' : '⏸️ Pause Contract'}
+                </button>
+              </div>
+            </div>
+          </TabsContent>
         )}
+      </Tabs>
+
+      {/* Create Position Modal */}
+      <CreatePositionModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={(txId) => {
+          setLastTxId(txId);
+          setShowCreateModal(false);
+          setTimeout(() => {
+            loadStats();
+            refetchPositions();
+          }, 3000);
+        }}
+      />
       </div>
 
       {/* Clarity 4 Features Info */}
       <div className="mt-8 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg p-6">
         <h3 className="text-lg font-bold text-gray-900 mb-3">✨ Clarity 4 Features Used</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-          <div className="bg-white rounded-lg p-3">
-            <code className="text-purple-600">stacks-block-time</code>
-            <p className="text-gray-600 mt-1">Get current block timestamp</p>
-          </div>
-          <div className="bg-white rounded-lg p-3">
-            <code className="text-purple-600">secp256r1-verify</code>
-            <p className="text-gray-600 mt-1">WebAuthn passkey verification</p>
-          </div>
-          <div className="bg-white rounded-lg p-3">
-            <code className="text-purple-600">contract-hash?</code>
-            <p className="text-gray-600 mt-1">Verify trading bot contracts</p>
-          </div>
-          <div className="bg-white rounded-lg p-3">
-            <code className="text-purple-600">restrict-assets?</code>
-            <p className="text-gray-600 mt-1">Asset protection</p>
-          </div>
-          <div className="bg-white rounded-lg p-3">
-            <code className="text-purple-600">to-ascii?</code>
-            <p className="text-gray-600 mt-1">Convert uint to ASCII string</p>
-          </div>
+          <Tooltip content="Get accurate block timestamps for position timing">
+            <div className="bg-white rounded-lg p-3 cursor-help">
+              <code className="text-purple-600">stacks-block-time</code>
+              <p className="text-gray-600 mt-1">Get current block timestamp</p>
+            </div>
+          </Tooltip>
+          <Tooltip content="Hardware key verification for secure position management">
+            <div className="bg-white rounded-lg p-3 cursor-help">
+              <code className="text-purple-600">secp256r1-verify</code>
+              <p className="text-gray-600 mt-1">WebAuthn passkey verification</p>
+            </div>
+          </Tooltip>
+          <Tooltip content="Verify contract integrity before interactions">
+            <div className="bg-white rounded-lg p-3 cursor-help">
+              <code className="text-purple-600">contract-hash?</code>
+              <p className="text-gray-600 mt-1">Verify trading bot contracts</p>
+            </div>
+          </Tooltip>
+          <Tooltip content="Prevent unauthorized asset movements">
+            <div className="bg-white rounded-lg p-3 cursor-help">
+              <code className="text-purple-600">restrict-assets?</code>
+              <p className="text-gray-600 mt-1">Asset protection</p>
+            </div>
+          </Tooltip>
+          <Tooltip content="Generate readable NFT metadata on-chain">
+            <div className="bg-white rounded-lg p-3 cursor-help">
+              <code className="text-purple-600">to-ascii?</code>
+              <p className="text-gray-600 mt-1">Convert uint to ASCII string</p>
+            </div>
+          </Tooltip>
         </div>
       </div>
     </div>

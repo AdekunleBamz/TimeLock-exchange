@@ -20,7 +20,15 @@ import {
 import { StacksMainnet, StacksTestnet, StacksDevnet } from '@stacks/network';
 import { openContractCall } from '@stacks/connect';
 import { ACTIVE_NETWORK, CONTRACTS, parseContractId, NETWORK } from './constants';
-import type { Position, CreatePositionParams, ContractCallResult, ReadOnlyResult } from './types';
+import type { 
+  Position, 
+  CreatePositionParams, 
+  ContractCallResult, 
+  ReadOnlyResult,
+  EarlyWithdrawalInfo,
+  PauseStatus,
+  FeeTierInfo,
+} from './types';
 import { userSession } from './wallet-context';
 
 // Get the appropriate network instance
@@ -119,6 +127,130 @@ export async function isBotApproved(botPrincipal: string): Promise<boolean> {
     [principalCV(botPrincipal)]
   );
   return result.success ? !!result.value : false;
+}
+
+/**
+ * Get position details
+ */
+export async function getPosition(positionId: number): Promise<Position | null> {
+  const result = await readContract<{
+    owner: string;
+    amount: { value: number };
+    'lock-duration': { value: number };
+    'created-at': { value: number };
+    'unlock-time': { value: number };
+    'is-active': boolean;
+    'asset-type': string;
+    'passkey-protected': boolean;
+  }>(
+    CONTRACTS.timelockExchange,
+    'get-position',
+    [uintCV(positionId)]
+  );
+  
+  if (!result.success || !result.value) return null;
+  
+  const pos = result.value;
+  return {
+    id: positionId,
+    owner: pos.owner,
+    amount: pos.amount.value / 1_000_000,
+    asset: pos['asset-type'],
+    createdAt: pos['created-at'].value,
+    duration: pos['lock-duration'].value / 86400,
+    unlockTime: pos['unlock-time'].value,
+    isActive: pos['is-active'],
+    passkeyProtected: pos['passkey-protected'],
+  };
+}
+
+/**
+ * Get total locked value
+ */
+export async function getTotalLockedValue(): Promise<number> {
+  const result = await readContract<{ value: number }>(
+    CONTRACTS.timelockExchange,
+    'get-total-locked-value'
+  );
+  return result.success ? (result.value?.value ?? 0) / 1_000_000 : 0;
+}
+
+/**
+ * Calculate early withdrawal penalty
+ */
+export async function calculateEarlyWithdrawalPenalty(positionId: number): Promise<EarlyWithdrawalInfo | null> {
+  const result = await readContract<{
+    value: {
+      'penalty-amount': { value: number };
+      'penalty-bps': { value: number };
+      'amount-after-penalty': { value: number };
+      'time-remaining': { value: number };
+    };
+  }>(
+    CONTRACTS.timelockExchange,
+    'calculate-early-withdrawal-penalty',
+    [uintCV(positionId)]
+  );
+  
+  if (!result.success || !result.value?.value) return null;
+  
+  const info = result.value.value;
+  return {
+    penaltyAmount: info['penalty-amount'].value / 1_000_000,
+    penaltyBps: info['penalty-bps'].value,
+    amountAfterPenalty: info['amount-after-penalty'].value / 1_000_000,
+    timeRemaining: info['time-remaining'].value,
+  };
+}
+
+/**
+ * Get pause status
+ */
+export async function getPauseStatus(): Promise<PauseStatus> {
+  const result = await readContract<{
+    'is-paused': boolean;
+    reason: string;
+    'paused-since': { value: number };
+  }>(
+    CONTRACTS.timelockExchange,
+    'get-pause-status'
+  );
+  
+  if (!result.success || !result.value) {
+    return { isPaused: false, reason: '', pausedSince: 0 };
+  }
+  
+  return {
+    isPaused: result.value['is-paused'],
+    reason: result.value.reason,
+    pausedSince: result.value['paused-since'].value,
+  };
+}
+
+/**
+ * Calculate fee for lock duration
+ */
+export async function calculateFee(amount: number, lockDurationSeconds: number): Promise<FeeTierInfo | null> {
+  const amountMicroSTX = Math.floor(amount * 1_000_000);
+  const result = await readContract<{
+    'fee-amount': { value: number };
+    'fee-bps': { value: number };
+    tier: { value: number };
+    'amount-after-fee': { value: number };
+  }>(
+    CONTRACTS.feeCollector,
+    'calculate-fee',
+    [uintCV(amountMicroSTX), uintCV(lockDurationSeconds)]
+  );
+  
+  if (!result.success || !result.value) return null;
+  
+  return {
+    feeAmount: result.value['fee-amount'].value / 1_000_000,
+    feeBps: result.value['fee-bps'].value,
+    tier: result.value.tier.value,
+    amountAfterFee: result.value['amount-after-fee'].value / 1_000_000,
+  };
 }
 
 /**
