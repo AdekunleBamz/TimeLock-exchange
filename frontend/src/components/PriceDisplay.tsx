@@ -2,6 +2,10 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { usePriceOracle, useStxPrice, useBtcPrice, usePriceConverter } from '../hooks/usePriceOracle';
+import { CONTRACTS, DEPLOYER_ADDRESS } from '../lib/constants';
+
+// Mainnet price oracle contract
+const PRICE_ORACLE_CONTRACT = CONTRACTS.priceOracle;
 
 // ============================================================================
 // Types

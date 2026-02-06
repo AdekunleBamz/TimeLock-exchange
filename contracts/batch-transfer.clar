@@ -16,6 +16,7 @@
 (define-constant ERR-PAUSED (err u407))
 
 (define-constant MAX-RECIPIENTS u200)
+(define-constant MIN-TRANSFER-AMOUNT u1000) ;; 0.001 STX minimum per recipient (1000 microSTX)
 
 ;; ============================================================================
 ;; Data Variables
@@ -101,7 +102,7 @@
     
     ;; Collect fee
     (if (> fee u0)
-      (try! (stx-transfer? fee tx-sender (as-contract tx-sender)))
+      (try! (stx-transfer? fee tx-sender current-contract))
       true)
     
     ;; Execute transfers
@@ -113,7 +114,7 @@
         sender: tx-sender,
         recipient-count: recipient-count,
         total-amount: total-amount,
-        executed-at: block-height,
+        executed-at: stacks-block-height,
         asset-type: "STX"
       })
     
@@ -173,7 +174,7 @@
     
     ;; Collect fee
     (if (> fee u0)
-      (try! (stx-transfer? fee tx-sender (as-contract tx-sender)))
+      (try! (stx-transfer? fee tx-sender current-contract))
       true)
     
     ;; Execute transfers with memo
@@ -185,7 +186,7 @@
         sender: tx-sender,
         recipient-count: recipient-count,
         total-amount: total-amount,
-        executed-at: block-height,
+        executed-at: stacks-block-height,
         asset-type: "STX-MEMO"
       })
     
@@ -232,11 +233,14 @@
     
     ;; Collect fee
     (if (> fee u0)
-      (try! (stx-transfer? fee tx-sender (as-contract tx-sender)))
+      (try! (stx-transfer? fee tx-sender current-contract))
       true)
     
+    ;; Set the transfer amount for the fold operation
+    (var-set transfer-amount amount-per-recipient)
+    
     ;; Execute equal distribution
-    (try! (fold (execute-equal-transfer amount-per-recipient) recipients (ok true)))
+    (try! (fold execute-equal-transfer-inner recipients (ok true)))
     
     ;; Record batch
     (map-set batches batch-id
@@ -244,7 +248,7 @@
         sender: tx-sender,
         recipient-count: recipient-count,
         total-amount: total-amount,
-        executed-at: block-height,
+        executed-at: stacks-block-height,
         asset-type: "STX-EQUAL"
       })
     
@@ -255,13 +259,21 @@
     (ok batch-id)))
 
 (define-private (execute-equal-transfer (amount uint))
-  (lambda (recipient principal) (prev-result (response bool uint))
-    (match prev-result
-      success
-        (match (stx-transfer? amount tx-sender recipient)
-          ok-val (ok true)
-          err-val ERR-TRANSFER-FAILED)
-      error (err error))))
+  amount) ;; This is a placeholder - see execute-equal-transfer-inner
+
+;; Data var to store transfer amount for fold operation  
+(define-data-var transfer-amount uint u0)
+
+;; Inner function for fold that uses the stored transfer amount
+(define-private (execute-equal-transfer-inner 
+    (recipient principal)
+    (prev-result (response bool uint)))
+  (match prev-result
+    success
+      (match (stx-transfer? (var-get transfer-amount) tx-sender recipient)
+        ok-val (ok true)
+        err-val ERR-TRANSFER-FAILED)
+    error (err error)))
 
 ;; ============================================================================
 ;; Percentage Distribution
@@ -285,11 +297,14 @@
     
     ;; Collect fee
     (if (> fee u0)
-      (try! (stx-transfer? fee tx-sender (as-contract tx-sender)))
+      (try! (stx-transfer? fee tx-sender current-contract))
       true)
     
+    ;; Store total for inner function
+    (var-set percentage-total total-amount)
+    
     ;; Execute percentage distribution
-    (try! (fold (execute-percentage-transfer total-amount) recipients (ok true)))
+    (try! (fold execute-percentage-transfer-inner recipients (ok true)))
     
     ;; Record batch
     (map-set batches batch-id
@@ -297,7 +312,7 @@
         sender: tx-sender,
         recipient-count: recipient-count,
         total-amount: total-amount,
-        executed-at: block-height,
+        executed-at: stacks-block-height,
         asset-type: "STX-PERCENT"
       })
     
@@ -312,17 +327,21 @@
     (total uint))
   (+ total (get share-bps item)))
 
-(define-private (execute-percentage-transfer (total uint))
-  (lambda (item { recipient: principal, share-bps: uint }) (prev-result (response bool uint))
-    (let ((amount (/ (* total (get share-bps item)) u10000)))
-      (match prev-result
-        success
-          (if (> amount u0)
-            (match (stx-transfer? amount tx-sender (get recipient item))
-              ok-val (ok true)
-              err-val ERR-TRANSFER-FAILED)
-            (ok true))
-        error (err error)))))
+;; Data var for percentage transfer total amount
+(define-data-var percentage-total uint u0)
+
+(define-private (execute-percentage-transfer-inner
+    (item { recipient: principal, share-bps: uint })
+    (prev-result (response bool uint)))
+  (let ((amount (/ (* (var-get percentage-total) (get share-bps item)) u10000)))
+    (match prev-result
+      success
+        (if (> amount u0)
+          (match (stx-transfer? amount tx-sender (get recipient item))
+            ok-val (ok true)
+            err-val ERR-TRANSFER-FAILED)
+          (ok true))
+      error (err error))))
 
 ;; ============================================================================
 ;; Admin Functions
@@ -356,7 +375,7 @@
     (asserts! (> total-fees u0) ERR-INVALID-AMOUNT)
     
     ;; Transfer fees to owner
-    (try! (as-contract (stx-transfer? total-fees tx-sender CONTRACT-OWNER)))
+    (try! (as-contract? ((with-stx total-fees)) (try! (stx-transfer? total-fees tx-sender CONTRACT-OWNER))))
     
     ;; Reset fee counters
     (map-set collected-fees "STX" u0)

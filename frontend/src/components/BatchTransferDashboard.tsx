@@ -14,6 +14,10 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Toast } from '@/components/ui/Toast';
 import { formatSTX, truncateAddress } from '@/lib/utils';
+import { CONTRACTS, DEPLOYER_ADDRESS } from '@/lib/constants';
+
+// Mainnet batch transfer contract
+const BATCH_TRANSFER_CONTRACT = CONTRACTS.batchTransfer; // SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.batch-transfer-v1
 
 // Types
 type TransferMode = 'manual' | 'csv' | 'equal' | 'percentage';

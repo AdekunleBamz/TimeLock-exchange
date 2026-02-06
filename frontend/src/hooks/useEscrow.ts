@@ -98,6 +98,9 @@ const STATE_MAP: Record<number, EscrowState> = {
 
 const MICRO_STX = 1_000_000;
 
+// Contract configuration for mainnet
+const { address: CONTRACT_ADDRESS, name: CONTRACT_NAME } = parseContractId(CONTRACTS.escrow);
+
 // ============================================================================
 // Hook Implementation
 // ============================================================================
@@ -115,8 +118,8 @@ export function useEscrow(): UseEscrowReturn {
   const [error, setError] = useState<string | null>(null);
 
   const network = useMemo(() => getNetwork(), []);
-  const { address: contractAddress } = parseContractId(CONTRACTS.timelockExchange);
-  const contractName = 'escrow';
+  const contractAddress = CONTRACT_ADDRESS;
+  const contractName = CONTRACT_NAME;
 
   // ============================================================================
   // Read Functions

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useWallet } from '../lib/wallet-context';
+import { CONTRACTS, parseContractId, ACTIVE_NETWORK } from '../lib/constants';
 
 // ============================================================================
 // Types
@@ -88,10 +89,19 @@ export interface UseStakingReturn {
 }
 
 // ============================================================================
-// Constants
+// Constants - Using Mainnet Contract Addresses
 // ============================================================================
 
-const STAKING_CONTRACT = 'SP000000000000000000002Q6VF78.staking-rewards';
+/**
+ * Staking contract deployed on mainnet
+ * @see CONTRACTS.staking and CONTRACTS.stakingRewards
+ */
+const { address: STAKING_ADDRESS, name: STAKING_NAME } = parseContractId(CONTRACTS.staking);
+const { address: STAKING_REWARDS_ADDRESS, name: STAKING_REWARDS_NAME } = parseContractId(CONTRACTS.stakingRewards);
+
+// Full contract IDs for reference
+const STAKING_CONTRACT = CONTRACTS.staking; // SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.staking-v1
+const STAKING_REWARDS_CONTRACT = CONTRACTS.stakingRewards; // SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.staking-rewards-v2
 
 const TIERS: StakingTier[] = [
   { name: 'Bronze', multiplier: 1.0, minAmount: BigInt(1000) * BigInt(1e6) },

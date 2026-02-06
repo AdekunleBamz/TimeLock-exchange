@@ -1,0 +1,32 @@
+---
+id: 3
+name: Mainnet deployment - TimeLock Exchange v11-1 (Batch 4 of 4)
+network: mainnet
+stacks-node: "https://api.hiro.so"
+plan:
+  batches:
+    # Batch 4: Utility contracts (3 contracts)
+    - id: 0
+      transactions:
+        - contract-publish:
+            contract-name: escrow-v11-1
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 20000
+            path: contracts/escrow.clar
+            anchor-block-only: true
+            clarity-version: 4
+        - contract-publish:
+            contract-name: batch-transfer-v11-1
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 20000
+            path: contracts/batch-transfer.clar
+            anchor-block-only: true
+            clarity-version: 4
+        - contract-publish:
+            contract-name: emergency-withdraw-v11-1
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 20000
+            path: contracts/emergency-withdraw.clar
+            anchor-block-only: true
+            clarity-version: 4
+      epoch: "3.3"

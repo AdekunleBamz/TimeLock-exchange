@@ -11,6 +11,11 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/Tabs';
 import { Skeleton } from './ui/Skeleton';
 import { Modal } from './ui/Modal';
 import { formatSTX, formatPercent, formatNumber, formatDate, cn } from '../lib/utils';
+import { CONTRACTS, DEPLOYER_ADDRESS, parseContractId } from '../lib/constants';
+import { useGovernance } from '../hooks/useGovernance';
+
+// Mainnet governance contract
+const GOVERNANCE_CONTRACT = CONTRACTS.governance; // SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.governance-v1
 
 // ============================================================================
 // Types

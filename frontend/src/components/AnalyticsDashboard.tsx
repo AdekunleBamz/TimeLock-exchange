@@ -2,6 +2,13 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { usePriceOracle } from '../hooks/usePriceOracle';
+import { CONTRACTS, DEPLOYER_ADDRESS, ACTIVE_NETWORK } from '../lib/constants';
+
+// Mainnet contracts for analytics data
+const TIMELOCK_CONTRACT = CONTRACTS.timelockExchange;
+const FEE_COLLECTOR_CONTRACT = CONTRACTS.feeCollector;
+const STAKING_CONTRACT = CONTRACTS.staking;
+const REWARDS_CONTRACT = CONTRACTS.rewardsDistributor;
 
 // ============================================================================
 // Types

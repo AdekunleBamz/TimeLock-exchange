@@ -1,0 +1,17 @@
+---
+id: 4
+name: Mainnet - Staking Rewards (Retry)
+network: mainnet
+stacks-node: "https://api.hiro.so"
+bitcoin-node: "http://blockstack:blockstacksystem@bitcoin.blockstack.com:8332"
+plan:
+  batches:
+    - id: 0
+      transactions:
+        - contract-publish:
+            contract-name: staking-rewards-v1
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 145620
+            path: contracts/staking-rewards.clar
+            anchor-block-only: true
+            clarity-version: 4

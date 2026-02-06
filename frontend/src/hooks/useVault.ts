@@ -89,16 +89,15 @@ export interface UseVaultReturn {
 }
 
 // ============================================================================
-// Contract Configuration
+// Contract Configuration - Mainnet
 // ============================================================================
 
-const VAULT_CONTRACT = 'vault';
+// Use the deployed vault contract address
+const { address: VAULT_ADDRESS, name: VAULT_NAME } = parseContractId(CONTRACTS.vault);
 const MICRO_STX = 1_000_000;
 
 function getContractInfo() {
-  // Use the timelock exchange contract address for now (same deployer)
-  const { address } = parseContractId(CONTRACTS.timelockExchange);
-  return { address, name: VAULT_CONTRACT };
+  return { address: VAULT_ADDRESS, name: VAULT_NAME };
 }
 
 // ============================================================================

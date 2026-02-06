@@ -13,6 +13,10 @@ import { Tabs } from '@/components/ui/Tabs';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { formatSTX, truncateAddress, formatDate } from '@/lib/utils';
+import { CONTRACTS, DEPLOYER_ADDRESS } from '@/lib/constants';
+
+// Mainnet escrow contract
+const ESCROW_CONTRACT = CONTRACTS.escrow; // SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.escrow-v1
 
 // Types
 interface Milestone {

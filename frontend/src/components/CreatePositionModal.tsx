@@ -1,14 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { calculateFee } from '@/lib/contracts';
-import { LOCK_DURATIONS } from '@/lib/constants';
+import { CONTRACTS, DEPLOYER_ADDRESS, LOCK_DURATIONS } from '@/lib/constants';
+import { useWallet } from '@/lib/wallet-context';
 import type { FeeTierInfo } from '@/lib/types';
+
+// Mainnet contract for creating positions
+const TIMELOCK_CONTRACT = CONTRACTS.timelockExchange;
+const FEE_COLLECTOR_CONTRACT = CONTRACTS.feeCollector;
 
 interface CreatePositionModalProps {
   isOpen: boolean;

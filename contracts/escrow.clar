@@ -19,6 +19,9 @@
 (define-constant ERR-DISPUTE-EXISTS (err u410))
 (define-constant ERR-NO-DISPUTE (err u411))
 
+;; Minimum amounts
+(define-constant MIN-ESCROW-AMOUNT u1000) ;; 0.001 STX minimum (1000 microSTX)
+
 ;; Escrow states
 (define-constant STATE-PENDING u0)
 (define-constant STATE-FUNDED u1)
@@ -149,8 +152,8 @@
       (fee (calculate-fee amount))
       (buyer-stats (get-user-stats tx-sender))
     )
-    (asserts! (> amount u0) ERR-INVALID-AMOUNT)
-    (asserts! (> deadline block-height) ERR-DEADLINE-PASSED)
+    (asserts! (>= amount MIN-ESCROW-AMOUNT) ERR-INVALID-AMOUNT)
+    (asserts! (> deadline stacks-block-height) ERR-DEADLINE-PASSED)
     (asserts! (not (is-eq tx-sender seller)) ERR-NOT-AUTHORIZED)
     
     ;; Create escrow
@@ -161,7 +164,7 @@
         amount: amount,
         fee: fee,
         state: STATE-PENDING,
-        created-at: block-height,
+        created-at: stacks-block-height,
         deadline: deadline,
         description: description,
         milestone-count: u0,
@@ -194,7 +197,7 @@
     )
     (asserts! (> total-amount u0) ERR-INVALID-AMOUNT)
     (asserts! (is-eq amount-sum total-amount) ERR-INVALID-AMOUNT)
-    (asserts! (> deadline block-height) ERR-DEADLINE-PASSED)
+    (asserts! (> deadline stacks-block-height) ERR-DEADLINE-PASSED)
     (asserts! (> milestone-count u0) ERR-INVALID-AMOUNT)
     
     ;; Create escrow
@@ -205,7 +208,7 @@
         amount: total-amount,
         fee: fee,
         state: STATE-PENDING,
-        created-at: block-height,
+        created-at: stacks-block-height,
         deadline: deadline,
         description: description,
         milestone-count: milestone-count,
@@ -230,10 +233,10 @@
     )
     (asserts! (is-eq (get buyer escrow) tx-sender) ERR-NOT-AUTHORIZED)
     (asserts! (is-eq (get state escrow) STATE-PENDING) ERR-INVALID-STATE)
-    (asserts! (<= block-height (get deadline escrow)) ERR-DEADLINE-PASSED)
+    (asserts! (<= stacks-block-height (get deadline escrow)) ERR-DEADLINE-PASSED)
     
     ;; Transfer funds to contract
-    (try! (stx-transfer? total-amount tx-sender (as-contract tx-sender)))
+    (try! (stx-transfer? total-amount tx-sender current-contract))
     
     ;; Update state
     (map-set escrows escrow-id (merge escrow { state: STATE-FUNDED }))
@@ -260,7 +263,7 @@
     (asserts! (is-eq (get state escrow) STATE-FUNDED) ERR-INVALID-STATE)
     
     ;; Transfer to seller
-    (try! (as-contract (stx-transfer? amount tx-sender seller)))
+    (try! (as-contract? ((with-stx amount)) (try! (stx-transfer? amount tx-sender seller))))
     
     ;; Update state
     (map-set escrows escrow-id (merge escrow { state: STATE-RELEASED }))
@@ -291,11 +294,11 @@
     (asserts! (is-eq (get state escrow) STATE-FUNDED) ERR-INVALID-STATE)
     (asserts! (or 
       (is-eq (get seller escrow) tx-sender)
-      (> block-height (get deadline escrow)))
+      (> stacks-block-height (get deadline escrow)))
       ERR-NOT-AUTHORIZED)
     
     ;; Return funds to buyer (including fee since no trade happened)
-    (try! (as-contract (stx-transfer? (+ amount fee) tx-sender buyer)))
+    (try! (as-contract? ((with-stx (+ amount fee))) (try! (stx-transfer? (+ amount fee) tx-sender buyer))))
     
     ;; Update state
     (map-set escrows escrow-id (merge escrow { state: STATE-REFUNDED }))
@@ -319,11 +322,11 @@
     (asserts! (not (get is-released milestone)) ERR-INVALID-STATE)
     
     ;; Transfer milestone amount to seller
-    (try! (as-contract (stx-transfer? (get amount milestone) tx-sender (get seller escrow))))
+    (try! (as-contract? ((with-stx (get amount milestone))) (try! (stx-transfer? (get amount milestone) tx-sender (get seller escrow)))))
     
     ;; Update milestone
     (map-set milestones { escrow-id: escrow-id, milestone-id: milestone-id }
-      (merge milestone { is-released: true, released-at: block-height }))
+      (merge milestone { is-released: true, released-at: stacks-block-height }))
     
     ;; Update escrow
     (let ((new-released (+ (get milestones-released escrow) u1)))
@@ -357,7 +360,7 @@
         escrow-id: escrow-id,
         initiated-by: tx-sender,
         reason: reason,
-        created-at: block-height,
+        created-at: stacks-block-height,
         resolved: false,
         resolution: "",
         buyer-refund: u0,
@@ -397,12 +400,12 @@
     
     ;; Transfer to buyer
     (if (> buyer-amount u0)
-      (try! (as-contract (stx-transfer? buyer-amount tx-sender (get buyer escrow))))
+      (try! (as-contract? ((with-stx buyer-amount)) (try! (stx-transfer? buyer-amount tx-sender (get buyer escrow)))))
       true)
     
     ;; Transfer to seller
     (if (> seller-amount u0)
-      (try! (as-contract (stx-transfer? seller-amount tx-sender (get seller escrow))))
+      (try! (as-contract? ((with-stx seller-amount)) (try! (stx-transfer? seller-amount tx-sender (get seller escrow)))))
       true)
     
     ;; Update dispute

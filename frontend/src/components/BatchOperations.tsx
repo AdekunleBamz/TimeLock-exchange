@@ -3,9 +3,13 @@
 import React, { useState, useCallback } from 'react';
 import { useWallet } from '@/lib/wallet-context';
 import { openContractCall } from '@stacks/connect';
-import { TIMELOCK_EXCHANGE_CONTRACT } from '@/lib/contracts';
+import { CONTRACTS, DEPLOYER_ADDRESS, parseContractId } from '@/lib/constants';
+import { getNetwork } from '@/lib/contracts';
 import { uintCV, listCV, tupleCV } from '@stacks/transactions';
 import { cn } from '@/lib/utils';
+
+// Mainnet contract reference
+const TIMELOCK_CONTRACT = CONTRACTS.timelockExchange;
 
 interface BatchPosition {
   amount: number;
@@ -47,19 +51,22 @@ export function BatchOperations({ onSuccess, onError }: BatchOperationsProps) {
 
     setIsLoading(true);
     try {
+      // Parse the mainnet contract address and name
+      const { address: contractAddress, name: contractName } = parseContractId(TIMELOCK_CONTRACT);
+      
       // Create positions sequentially
       const txIds: string[] = [];
       
       for (const position of positions) {
         await openContractCall({
-          contractAddress: TIMELOCK_EXCHANGE_CONTRACT.address,
-          contractName: TIMELOCK_EXCHANGE_CONTRACT.name,
+          contractAddress,
+          contractName,
           functionName: 'create-position',
           functionArgs: [
             uintCV(position.amount * 1_000_000), // Convert to micro-STX
             uintCV(position.duration * 86400),   // Convert days to seconds
           ],
-          network,
+          network: getNetwork(),
           onFinish: (data) => {
             txIds.push(data.txId);
           },
@@ -75,7 +82,7 @@ export function BatchOperations({ onSuccess, onError }: BatchOperationsProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [isConnected, positions, network, onSuccess, onError]);
+  }, [isConnected, positions, onSuccess, onError]);
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">

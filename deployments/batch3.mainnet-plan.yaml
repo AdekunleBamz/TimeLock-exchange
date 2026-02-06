@@ -1,0 +1,32 @@
+---
+id: 2
+name: Mainnet deployment - TimeLock Exchange v11-1 (Batch 3 of 4)
+network: mainnet
+stacks-node: "https://api.hiro.so"
+plan:
+  batches:
+    # Batch 3: Governance and Oracle (3 contracts)
+    - id: 0
+      transactions:
+        - contract-publish:
+            contract-name: governance-v11-1
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 20000
+            path: contracts/governance.clar
+            anchor-block-only: true
+            clarity-version: 4
+        - contract-publish:
+            contract-name: price-oracle-v11-1
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 20000
+            path: contracts/price-oracle.clar
+            anchor-block-only: true
+            clarity-version: 4
+        - contract-publish:
+            contract-name: vault-v11-1
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 20000
+            path: contracts/vault.clar
+            anchor-block-only: true
+            clarity-version: 4
+      epoch: "3.3"

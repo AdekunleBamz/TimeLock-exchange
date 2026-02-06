@@ -12,7 +12,7 @@ import {
   registerPasskey,
   getExplorerTxUrl,
 } from '@/lib/contracts';
-import { LOCK_DURATIONS } from '@/lib/constants';
+import { LOCK_DURATIONS, CONTRACTS, DEPLOYER_ADDRESS } from '@/lib/constants';
 import type { Position } from '@/lib/types';
 
 // New integrated components
@@ -31,6 +31,9 @@ import { useContractStatus } from '@/hooks/useContractStatus';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/Tabs';
 import { Badge } from './ui/Badge';
 import { Tooltip } from './ui/Tooltip';
+
+// Mainnet contract configuration
+const TIMELOCK_CONTRACT = CONTRACTS.timelockExchange;
 
 export function TimeLockDashboard() {
   const { isConnected, stxAddress } = useWallet();
@@ -61,12 +64,15 @@ export function TimeLockDashboard() {
     usePasskey: false,
   });
 
-  // Loading state combining all hooks
-  const isLoading = positionsLoading;
+  // Loading state for stats
+  const [statsLoading, setStatsLoading] = useState(false);
+
+  // Combined loading state
+  const isLoading = positionsLoading || statsLoading;
 
   // Load contract stats
   const loadStats = useCallback(async () => {
-    setIsLoading(true);
+    setStatsLoading(true);
     try {
       const [posCount, demoCount, fees, tokenId, time] = await Promise.all([
         getPositionCount(),
@@ -86,7 +92,7 @@ export function TimeLockDashboard() {
     } catch (error) {
       console.error('Error loading stats:', error);
     }
-    setIsLoading(false);
+    setStatsLoading(false);
   }, []);
 
   // Load on mount
@@ -325,7 +331,6 @@ export function TimeLockDashboard() {
           }, 3000);
         }}
       />
-      </div>
 
       {/* Clarity 4 Features Info */}
       <div className="mt-8 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg p-6">

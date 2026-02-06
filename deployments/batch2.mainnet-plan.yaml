@@ -1,0 +1,32 @@
+---
+id: 1
+name: Mainnet deployment - TimeLock Exchange v11-1 (Batch 2 of 4)
+network: mainnet
+stacks-node: "https://api.hiro.so"
+plan:
+  batches:
+    # Batch 2: Staking contracts (3 contracts)
+    - id: 0
+      transactions:
+        - contract-publish:
+            contract-name: staking-v11-1
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 20000
+            path: contracts/staking.clar
+            anchor-block-only: true
+            clarity-version: 4
+        - contract-publish:
+            contract-name: staking-rewards-v11-1
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 20000
+            path: contracts/staking-rewards.clar
+            anchor-block-only: true
+            clarity-version: 4
+        - contract-publish:
+            contract-name: rewards-distributor-v11-1
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 20000
+            path: contracts/rewards-distributor.clar
+            anchor-block-only: true
+            clarity-version: 4
+      epoch: "3.3"

@@ -1,21 +1,31 @@
 'use client';
 
 import { useWallet } from '@/lib/wallet-context';
+import { ACTIVE_NETWORK, DEPLOYER_ADDRESS } from '@/lib/constants';
 
 export function ConnectWallet() {
   const { isConnected, isLoading, stxAddress, network, connect, disconnect } = useWallet();
 
+  const isMainnet = ACTIVE_NETWORK === 'mainnet';
+
   if (isConnected && stxAddress) {
     return (
       <div className="flex items-center justify-center gap-4 mb-8">
-        <div className="bg-green-100 border border-green-300 rounded-lg px-4 py-2">
+        <div className={`${isMainnet ? 'bg-green-100 border-green-300' : 'bg-yellow-100 border-yellow-300'} border rounded-lg px-4 py-2`}>
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <p className="text-sm text-green-800 font-medium">
+            <div className={`w-2 h-2 ${isMainnet ? 'bg-green-500' : 'bg-yellow-500'} rounded-full animate-pulse`}></div>
+            <p className={`text-sm ${isMainnet ? 'text-green-800' : 'text-yellow-800'} font-medium`}>
               {stxAddress.slice(0, 6)}...{stxAddress.slice(-4)}
             </p>
+            {isMainnet && (
+              <span className="bg-green-600 text-white text-xs px-2 py-0.5 rounded-full font-semibold">
+                MAINNET
+              </span>
+            )}
           </div>
-          <p className="text-xs text-green-600 mt-1">{network}</p>
+          <p className={`text-xs ${isMainnet ? 'text-green-600' : 'text-yellow-600'} mt-1`}>
+            {network} • {isMainnet ? 'Production' : 'Test Network'}
+          </p>
         </div>
         <button
           onClick={disconnect}
@@ -28,7 +38,12 @@ export function ConnectWallet() {
   }
 
   return (
-    <div className="flex justify-center mb-8">
+    <div className="flex flex-col items-center gap-2 mb-8">
+      {isMainnet && (
+        <span className="bg-green-600 text-white text-xs px-3 py-1 rounded-full font-semibold">
+          🟢 MAINNET
+        </span>
+      )}
       <button
         onClick={connect}
         disabled={isLoading}

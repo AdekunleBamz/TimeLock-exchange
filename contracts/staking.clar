@@ -32,7 +32,7 @@
 (define-constant APY_365_DAYS u2500)    ;; 25% APY
 
 ;; Other constants
-(define-constant MIN_STAKE_AMOUNT u1000000)  ;; 1 STX minimum
+(define-constant MIN_STAKE_AMOUNT u100000)   ;; 0.1 STX minimum
 (define-constant MAX_STAKES_PER_USER u10)
 (define-constant COOLDOWN_PERIOD u144)        ;; ~24 hours
 (define-constant BLOCKS_PER_YEAR u525600)
@@ -111,19 +111,21 @@
   (/ (* (* amount apy) blocks) (* BLOCKS_PER_YEAR u10000)))
 
 (define-private (update-tier-stats (tier uint) (amount-change int) (count-change int))
-  (let ((current-info (unwrap! (map-get? tier-info { tier: tier }) false)))
-    (map-set tier-info { tier: tier }
-      {
-        lock-duration: (get lock-duration current-info),
-        apy: (get apy current-info),
-        total-staked: (if (< amount-change 0)
-                        (- (get total-staked current-info) (to-uint (* -1 amount-change)))
-                        (+ (get total-staked current-info) (to-uint amount-change))),
-        staker-count: (if (< count-change 0)
-                        (- (get staker-count current-info) (to-uint (* -1 count-change)))
-                        (+ (get staker-count current-info) (to-uint count-change)))
-      })
-    true))
+  (match (map-get? tier-info { tier: tier })
+    current-info (begin
+      (map-set tier-info { tier: tier }
+        {
+          lock-duration: (get lock-duration current-info),
+          apy: (get apy current-info),
+          total-staked: (if (< amount-change 0)
+                          (- (get total-staked current-info) (to-uint (* -1 amount-change)))
+                          (+ (get total-staked current-info) (to-uint amount-change))),
+          staker-count: (if (< count-change 0)
+                          (- (get staker-count current-info) (to-uint (* -1 count-change)))
+                          (+ (get staker-count current-info) (to-uint count-change)))
+        })
+      (ok true))
+    (err u1)))
 
 ;; Public functions
 
@@ -135,7 +137,7 @@
     (user-data (default-to 
       { stake-ids: (list ), total-staked: u0, total-rewards-claimed: u0 }
       (map-get? user-stakes { user: user })))
-    (current-block block-height)
+    (current-block stacks-block-height)
   )
     ;; Validations
     (asserts! (not (var-get pool-paused)) ERR_POOL_PAUSED)
@@ -144,7 +146,7 @@
     (asserts! (< (len (get stake-ids user-data)) MAX_STAKES_PER_USER) ERR_MAX_STAKES_REACHED)
     
     ;; Transfer STX to contract
-    (try! (stx-transfer? amount user (as-contract tx-sender)))
+    (try! (stx-transfer? amount user current-contract))
     
     ;; Create stake record
     (map-set stakes { stake-id: stake-id }
@@ -201,7 +203,7 @@
   (let (
     (stake-data (unwrap! (map-get? stakes { stake-id: stake-id }) ERR_STAKE_NOT_FOUND))
     (user tx-sender)
-    (current-block block-height)
+    (current-block stacks-block-height)
     (blocks-elapsed (- current-block (get last-reward-block stake-data)))
     (apy (get-tier-apy (get tier stake-data)))
     (pending-rewards (calculate-rewards (get amount stake-data) apy blocks-elapsed))
@@ -213,7 +215,7 @@
     (asserts! (<= total-rewards (var-get reward-pool)) ERR_INSUFFICIENT_BALANCE)
     
     ;; Transfer rewards
-    (try! (as-contract (stx-transfer? total-rewards tx-sender user)))
+    (try! (as-contract? ((with-stx total-rewards)) (try! (stx-transfer? total-rewards tx-sender user))))
     
     ;; Update stake
     (map-set stakes { stake-id: stake-id }
@@ -240,7 +242,7 @@
   (let (
     (stake-data (unwrap! (map-get? stakes { stake-id: stake-id }) ERR_STAKE_NOT_FOUND))
     (user tx-sender)
-    (current-block block-height)
+    (current-block stacks-block-height)
     (blocks-elapsed (- current-block (get last-reward-block stake-data)))
     (apy (get-tier-apy (get tier stake-data)))
     (pending-rewards (calculate-rewards (get amount stake-data) apy blocks-elapsed))
@@ -273,7 +275,7 @@
     (asserts! (is-eq (get cooldown-start stake-data) u0) ERR_COOLDOWN_ACTIVE)
     
     (map-set stakes { stake-id: stake-id }
-      (merge stake-data { cooldown-start: block-height }))
+      (merge stake-data { cooldown-start: stacks-block-height }))
     
     (ok true)))
 
@@ -282,7 +284,7 @@
   (let (
     (stake-data (unwrap! (map-get? stakes { stake-id: stake-id }) ERR_STAKE_NOT_FOUND))
     (user tx-sender)
-    (current-block block-height)
+    (current-block stacks-block-height)
     (is-unlocked (>= current-block (get unlock-block stake-data)))
     (cooldown-complete (and (> (get cooldown-start stake-data) u0)
                            (>= current-block (+ (get cooldown-start stake-data) COOLDOWN_PERIOD))))
@@ -303,7 +305,7 @@
       (final-amount (- (+ (get amount stake-data) total-rewards) penalty))
     )
       ;; Transfer funds back
-      (try! (as-contract (stx-transfer? final-amount tx-sender user)))
+      (try! (as-contract? ((with-stx final-amount)) (try! (stx-transfer? final-amount tx-sender user))))
       
       ;; Remove stake
       (map-delete stakes { stake-id: stake-id })
@@ -330,7 +332,7 @@
 ;; Add to reward pool
 (define-public (add-rewards (amount uint))
   (begin
-    (try! (stx-transfer? amount tx-sender (as-contract tx-sender)))
+    (try! (stx-transfer? amount tx-sender current-contract))
     (var-set reward-pool (+ (var-get reward-pool) amount))
     (ok true)))
 
@@ -377,7 +379,7 @@
 (define-read-only (get-pending-rewards (stake-id uint))
   (let (
     (stake-data (unwrap! (map-get? stakes { stake-id: stake-id }) u0))
-    (blocks-elapsed (- block-height (get last-reward-block stake-data)))
+    (blocks-elapsed (- stacks-block-height (get last-reward-block stake-data)))
     (apy (get-tier-apy (get tier stake-data)))
     (pending (calculate-rewards (get amount stake-data) apy blocks-elapsed))
   )
@@ -407,7 +409,7 @@
 
 (define-read-only (is-stake-unlocked (stake-id uint))
   (let ((stake-data (unwrap! (map-get? stakes { stake-id: stake-id }) false)))
-    (>= block-height (get unlock-block stake-data))))
+    (>= stacks-block-height (get unlock-block stake-data))))
 
 (define-read-only (get-all-tiers)
   (list 

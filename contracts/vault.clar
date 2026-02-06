@@ -115,7 +115,7 @@
   (default-to false (map-get? vault-guardians { vault-id: vault-id, guardian: guardian })))
 
 (define-read-only (get-daily-withdrawn (vault-id uint))
-  (let ((today (/ block-height u144)))
+  (let ((today (/ stacks-block-height u144)))
     (default-to u0 (map-get? daily-withdrawals { vault-id: vault-id, day: today }))))
 
 (define-read-only (get-remaining-daily-limit (vault-id uint))
@@ -139,7 +139,7 @@
       (and
         (not (get is-executed request))
         (not (get is-cancelled request))
-        (>= block-height (get execute-after request)))
+        (>= stacks-block-height (get execute-after request)))
     false))
 
 (define-read-only (get-vault-stats (vault-id uint))
@@ -182,7 +182,7 @@
       {
         owner: tx-sender,
         stx-balance: u0,
-        created-at: block-height,
+        created-at: stacks-block-height,
         last-withdrawal: u0,
         daily-limit-bps: limit,
         withdrawal-delay: delay,
@@ -208,7 +208,7 @@
     (asserts! (not (var-get protocol-paused)) ERR-VAULT-LOCKED)
     
     ;; Transfer STX to contract
-    (try! (stx-transfer? amount tx-sender (as-contract tx-sender)))
+    (try! (stx-transfer? amount tx-sender current-contract))
     
     ;; Update vault balance
     (map-set vaults vault-id
@@ -238,7 +238,7 @@
     (asserts! (> amount u0) ERR-INVALID-AMOUNT)
     
     ;; Check cooldown period
-    (asserts! (>= block-height (+ (get last-withdrawal vault) COOLDOWN-PERIOD)) ERR-COOLDOWN-ACTIVE)
+    (asserts! (>= stacks-block-height (+ (get last-withdrawal vault) COOLDOWN-PERIOD)) ERR-COOLDOWN-ACTIVE)
     
     ;; Create pending withdrawal
     (map-set pending-withdrawals
@@ -246,8 +246,8 @@
       {
         amount: amount,
         asset-type: "STX",
-        requested-at: block-height,
-        execute-after: (+ block-height (get withdrawal-delay vault)),
+        requested-at: stacks-block-height,
+        execute-after: (+ stacks-block-height (get withdrawal-delay vault)),
         is-executed: false,
         is-cancelled: false
       })
@@ -259,7 +259,7 @@
       vault-id: vault-id, 
       request-id: request-id, 
       amount: amount,
-      execute-after: (+ block-height (get withdrawal-delay vault))
+      execute-after: (+ stacks-block-height (get withdrawal-delay vault))
     })
     (ok request-id)))
 
@@ -270,12 +270,12 @@
       (vault (unwrap! (map-get? vaults vault-id) ERR-VAULT-NOT-FOUND))
       (request (unwrap! (map-get? pending-withdrawals { vault-id: vault-id, request-id: request-id }) ERR-WITHDRAWAL-PENDING))
       (amount (get amount request))
-      (today (/ block-height u144))
+      (today (/ stacks-block-height u144))
     )
     (asserts! (is-eq (get owner vault) tx-sender) ERR-NOT-AUTHORIZED)
     (asserts! (not (get is-executed request)) ERR-WITHDRAWAL-PENDING)
     (asserts! (not (get is-cancelled request)) ERR-WITHDRAWAL-PENDING)
-    (asserts! (>= block-height (get execute-after request)) ERR-DELAY-NOT-MET)
+    (asserts! (>= stacks-block-height (get execute-after request)) ERR-DELAY-NOT-MET)
     (asserts! (<= amount (get stx-balance vault)) ERR-INSUFFICIENT-BALANCE)
     
     ;; Update request status
@@ -287,7 +287,7 @@
     (map-set vaults vault-id
       (merge vault {
         stx-balance: (- (get stx-balance vault) amount),
-        last-withdrawal: block-height,
+        last-withdrawal: stacks-block-height,
         total-withdrawn: (+ (get total-withdrawn vault) amount)
       }))
     
@@ -299,7 +299,7 @@
     (var-set total-stx-locked (- (var-get total-stx-locked) amount))
     
     ;; Transfer STX to owner
-    (try! (as-contract (stx-transfer? amount tx-sender (get owner vault))))
+    (try! (as-contract? ((with-stx amount)) (try! (stx-transfer? amount tx-sender (get owner vault)))))
     
     (print { event: "withdrawal-executed", vault-id: vault-id, request-id: request-id, amount: amount })
     (ok amount)))
@@ -337,10 +337,10 @@
     (map-set vaults vault-id
       (merge vault {
         is-locked: true,
-        lock-until: (+ block-height duration)
+        lock-until: (+ stacks-block-height duration)
       }))
     
-    (print { event: "vault-locked", vault-id: vault-id, until: (+ block-height duration) })
+    (print { event: "vault-locked", vault-id: vault-id, until: (+ stacks-block-height duration) })
     (ok true)))
 
 ;; Unlock vault (if lock period expired)
@@ -350,7 +350,7 @@
       (vault (unwrap! (map-get? vaults vault-id) ERR-VAULT-NOT-FOUND))
     )
     (asserts! (is-eq (get owner vault) tx-sender) ERR-NOT-AUTHORIZED)
-    (asserts! (>= block-height (get lock-until vault)) ERR-DELAY-NOT-MET)
+    (asserts! (>= stacks-block-height (get lock-until vault)) ERR-DELAY-NOT-MET)
     
     (map-set vaults vault-id
       (merge vault {

@@ -1,5 +1,6 @@
 ;; Staking Rewards Contract
-;; Provides staking rewards for long-term position holders
+;; Provides TLX token rewards for long-term position holders
+;; Rewards are paid in TLX tokens (minted on claim)
 ;; Uses Clarity 4 features
 
 (define-constant contract-owner tx-sender)
@@ -13,10 +14,14 @@
 (define-constant err-min-lock-not-met (err u107))
 (define-constant err-rewards-not-available (err u108))
 (define-constant err-cooldown-active (err u109))
+(define-constant err-token-mint-failed (err u110))
+
+;; TLX Token contract reference (must be set after deployment)
+(define-data-var tlx-token-contract principal contract-owner)
 
 ;; Staking configuration
 (define-data-var reward-rate-per-block uint u100) ;; Rewards per block per 1M STX staked
-(define-data-var min-stake-amount uint u1000000) ;; 1 STX minimum
+(define-data-var min-stake-amount uint u100000) ;; 0.1 STX minimum
 (define-data-var min-lock-period uint u10080) ;; ~7 days in blocks
 (define-data-var reward-pool-balance uint u0)
 (define-data-var total-staked uint u0)
@@ -178,7 +183,7 @@
     (asserts! (is-none existing-stake) err-already-staked)
     
     ;; Transfer STX to contract
-    (try! (stx-transfer? amount tx-sender (as-contract tx-sender)))
+    (try! (stx-transfer? amount tx-sender current-contract))
     
     ;; Calculate tier based on lock duration
     (let (
@@ -223,7 +228,7 @@
     (try! (claim-rewards))
     
     ;; Transfer additional STX
-    (try! (stx-transfer? amount tx-sender (as-contract tx-sender)))
+    (try! (stx-transfer? amount tx-sender current-contract))
     
     ;; Update staker record
     (map-set stakers
@@ -253,11 +258,9 @@
     (asserts! (get is-active staker-data) err-not-staked)
     ;; Must have rewards to claim
     (asserts! (> pending u0) err-rewards-not-available)
-    ;; Must have sufficient reward pool
-    (asserts! (>= (var-get reward-pool-balance) pending) err-insufficient-balance)
     
-    ;; Transfer rewards
-    (try! (as-contract (stx-transfer? pending tx-sender tx-sender)))
+    ;; Mint TLX tokens as reward (instead of STX transfer)
+    (try! (contract-call? 'SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.timelock-token-v11-1 mint pending tx-sender))
     
     ;; Update staker record
     (map-set stakers
@@ -303,6 +306,7 @@
 ;; Complete unstake after cooldown
 (define-public (complete-unstake)
   (let (
+    (user tx-sender)
     (staker-data (unwrap! (map-get? stakers { address: tx-sender }) err-not-staked))
     (cooldown-start (unwrap! (get cooldown-start staker-data) err-cooldown-active))
   )
@@ -313,25 +317,19 @@
     
     ;; Claim any remaining rewards first
     (let (
-      (pending (calculate-pending-rewards tx-sender))
+      (pending (calculate-pending-rewards user))
       (staked-amount (get staked-amount staker-data))
     )
-      ;; Transfer staked amount back
-      (try! (as-contract (stx-transfer? staked-amount tx-sender tx-sender)))
+      ;; Transfer staked amount back (STX)
+      (try! (as-contract? ((with-stx staked-amount)) (try! (stx-transfer? staked-amount tx-sender user))))
       
-      ;; Transfer any pending rewards if available
-      (if (and (> pending u0) (>= (var-get reward-pool-balance) pending))
-        (begin
-          (try! (as-contract (stx-transfer? pending tx-sender tx-sender)))
-          (var-set reward-pool-balance (- (var-get reward-pool-balance) pending))
-          true
-        )
-        true
-      )
+      ;; Mint any pending TLX rewards if available
+      (and (> pending u0)
+        (is-ok (contract-call? 'SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.timelock-token-v11-1 mint pending user)))
       
       ;; Update staker record
       (map-set stakers
-        { address: tx-sender }
+        { address: user }
         (merge staker-data {
           staked-amount: u0,
           is-active: false,
@@ -343,7 +341,7 @@
       (var-set total-staked (- (var-get total-staked) staked-amount))
       
       ;; Record history
-      (record-history tx-sender "unstake" staked-amount pending)
+      (record-history user "unstake" staked-amount pending)
       
       (ok { unstaked: staked-amount, rewards: pending })
     )
@@ -376,7 +374,7 @@
     (asserts! (is-eq tx-sender contract-owner) err-owner-only)
     (asserts! (> amount u0) err-invalid-amount)
     
-    (try! (stx-transfer? amount tx-sender (as-contract tx-sender)))
+    (try! (stx-transfer? amount tx-sender current-contract))
     (var-set reward-pool-balance (+ (var-get reward-pool-balance) amount))
     
     (ok (var-get reward-pool-balance))
@@ -408,6 +406,21 @@
     (var-set cooldown-period new-period)
     (ok new-period)
   )
+)
+
+;; Admin: Set TLX token contract (call once after deployment)
+(define-public (set-tlx-token-contract (token-contract principal))
+  (begin
+    (asserts! (is-eq tx-sender contract-owner) err-owner-only)
+    (var-set tlx-token-contract token-contract)
+    (print { event: "tlx-token-set", contract: token-contract })
+    (ok true)
+  )
+)
+
+;; Read-only: Get TLX token contract
+(define-read-only (get-tlx-token-contract)
+  (var-get tlx-token-contract)
 )
 
 ;; Private helper functions

@@ -2,6 +2,24 @@
 
 import React, { useState, useMemo } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
+import { CONTRACTS, DEPLOYER_ADDRESS, ACTIVE_NETWORK } from '../lib/constants';
+
+// Mainnet explorer URLs
+const EXPLORER_BASE_URL = ACTIVE_NETWORK === 'mainnet' 
+  ? 'https://explorer.stacks.co' 
+  : 'https://explorer.stacks.co/?chain=testnet';
+
+// Contract references for transaction parsing
+const CONTRACT_NAMES = {
+  [CONTRACTS.timelockExchange]: 'TimeLock Exchange',
+  [CONTRACTS.staking]: 'Staking',
+  [CONTRACTS.stakingRewards]: 'Staking Rewards',
+  [CONTRACTS.governance]: 'Governance',
+  [CONTRACTS.vault]: 'Vault',
+  [CONTRACTS.escrow]: 'Escrow',
+  [CONTRACTS.feeCollector]: 'Fee Collector',
+  [CONTRACTS.positionNft]: 'Position NFT',
+};
 
 // ============================================================================
 // Types

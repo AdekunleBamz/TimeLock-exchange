@@ -1,0 +1,24 @@
+---
+id: 3
+name: Mainnet Batch 3 - Core Exchange and Vault
+network: mainnet
+stacks-node: "https://api.hiro.so"
+bitcoin-node: "http://blockstack:blockstacksystem@bitcoin.blockstack.com:8332"
+plan:
+  batches:
+    - id: 0
+      transactions:
+        - contract-publish:
+            contract-name: timelock-exchange-v1
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 234680
+            path: contracts/timelock-exchange.clar
+            anchor-block-only: true
+            clarity-version: 4
+        - contract-publish:
+            contract-name: vault-v1
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 152540
+            path: contracts/vault.clar
+            anchor-block-only: true
+            clarity-version: 4

@@ -10,6 +10,12 @@ import { Progress } from './ui/Progress';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/Tabs';
 import { Skeleton } from './ui/Skeleton';
 import { formatSTX, formatPercent, formatNumber, formatDate } from '../lib/utils';
+import { CONTRACTS, DEPLOYER_ADDRESS, parseContractId } from '../lib/constants';
+import { useStaking } from '../hooks/useStaking';
+
+// Mainnet staking contracts
+const STAKING_CONTRACT = CONTRACTS.staking; // SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.staking-v1
+const REWARDS_CONTRACT = CONTRACTS.stakingRewards; // SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.staking-rewards-v2
 
 // ============================================================================
 // Types

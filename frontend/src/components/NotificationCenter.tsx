@@ -2,6 +2,12 @@
 
 import React, { useState, useEffect, useCallback, createContext, useContext, useRef } from 'react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { ACTIVE_NETWORK, CONTRACTS } from '../lib/constants';
+
+// Mainnet explorer for transaction links
+const EXPLORER_BASE_URL = ACTIVE_NETWORK === 'mainnet'
+  ? 'https://explorer.stacks.co/txid'
+  : 'https://explorer.stacks.co/txid?chain=testnet';
 
 // ============================================================================
 // Types

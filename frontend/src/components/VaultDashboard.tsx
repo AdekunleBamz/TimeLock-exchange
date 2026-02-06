@@ -8,6 +8,10 @@ import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { Progress } from '@/components/ui/Progress';
 import { Modal } from '@/components/ui/Modal';
+import { CONTRACTS, DEPLOYER_ADDRESS } from '@/lib/constants';
+
+// Mainnet vault contract
+const VAULT_CONTRACT = CONTRACTS.vault; // SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.vault-v1
 
 // ============================================================================
 // Sub-Components

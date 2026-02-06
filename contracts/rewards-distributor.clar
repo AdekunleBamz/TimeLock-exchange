@@ -99,7 +99,7 @@
       {
         exists: true,
         is-active: (get is-active epoch),
-        is-expired: (> block-height (get claim-deadline epoch)),
+        is-expired: (> stacks-block-height (get claim-deadline epoch)),
         remaining-amount: (- (get total-amount epoch) (get claimed-amount epoch)),
         claim-rate: (if (is-eq (get total-amount epoch) u0)
                        u0
@@ -131,11 +131,19 @@
     (root (buff 32)))
   (is-eq root (fold hash-pair proof leaf)))
 
-;; Hash pair helper for merkle tree
+;; Hash pair helper for merkle tree - compare buffers by first byte for ordering
 (define-private (hash-pair (proof-element (buff 32)) (current-hash (buff 32)))
-  (if (< (buff-to-uint-be current-hash) (buff-to-uint-be proof-element))
-    (keccak256 (concat current-hash proof-element))
-    (keccak256 (concat proof-element current-hash))))
+  (let (
+    (current-first (element-at? current-hash u0))
+    (proof-first (element-at? proof-element u0))
+  )
+    (if (is-some current-first)
+      (if (is-some proof-first)
+        (if (< (buff-to-uint-be (unwrap-panic current-first)) (buff-to-uint-be (unwrap-panic proof-first)))
+          (keccak256 (concat current-hash proof-element))
+          (keccak256 (concat proof-element current-hash)))
+        (keccak256 (concat current-hash proof-element)))
+      (keccak256 (concat current-hash proof-element)))))
 
 ;; Create leaf hash from claim data
 (define-read-only (create-claim-leaf (user principal) (amount uint) (epoch-id uint))
@@ -171,9 +179,9 @@
   (let
     (
       (epoch-id (+ (var-get current-epoch) u1))
-      (start-height block-height)
-      (end-height (+ block-height EPOCH-DURATION))
-      (claim-deadline (+ block-height CLAIM-WINDOW))
+      (start-height stacks-block-height)
+      (end-height (+ stacks-block-height EPOCH-DURATION))
+      (claim-deadline (+ stacks-block-height CLAIM-WINDOW))
     )
     (asserts! (or (is-eq tx-sender CONTRACT-OWNER) (is-distributor tx-sender)) ERR-NOT-AUTHORIZED)
     (asserts! (< epoch-id MAX-EPOCHS) ERR-MAX-EPOCHS-REACHED)
@@ -237,7 +245,7 @@
     )
     ;; Validations
     (asserts! (get is-active epoch) ERR-EPOCH-NOT-ACTIVE)
-    (asserts! (<= block-height (get claim-deadline epoch)) ERR-EPOCH-EXPIRED)
+    (asserts! (<= stacks-block-height (get claim-deadline epoch)) ERR-EPOCH-EXPIRED)
     (asserts! (not (has-claimed epoch-id tx-sender)) ERR-ALREADY-CLAIMED)
     (asserts! (verify-merkle-proof leaf proof (get merkle-root epoch)) ERR-INVALID-PROOF)
     (asserts! (>= (- (get total-amount epoch) (get claimed-amount epoch)) amount) ERR-INSUFFICIENT-BALANCE)
@@ -245,7 +253,7 @@
     ;; Record claim
     (map-set user-claims
       { epoch-id: epoch-id, user: tx-sender }
-      { claimed: true, amount: amount, claim-height: block-height })
+      { claimed: true, amount: amount, claim-height: stacks-block-height })
     
     ;; Update epoch claimed amount
     (map-set epochs epoch-id 
@@ -256,9 +264,9 @@
       {
         total-claimed: (+ (get total-claimed user-current-stats) amount),
         epochs-claimed: (+ (get epochs-claimed user-current-stats) u1),
-        last-claim-height: block-height,
+        last-claim-height: stacks-block-height,
         first-claim-height: (if (is-eq (get first-claim-height user-current-stats) u0)
-                               block-height
+                               stacks-block-height
                                (get first-claim-height user-current-stats))
       })
     
@@ -270,7 +278,7 @@
       epoch-id: epoch-id,
       user: tx-sender,
       amount: amount,
-      block: block-height
+      block: stacks-block-height
     })
     
     ;; Transfer rewards (in production, this would call stx-transfer? or token transfer)
@@ -298,13 +306,13 @@
     )
     (if (and 
           (get is-active epoch)
-          (<= block-height (get claim-deadline epoch))
+          (<= stacks-block-height (get claim-deadline epoch))
           (not (has-claimed epoch-id tx-sender))
           (verify-merkle-proof leaf proof (get merkle-root epoch)))
       (begin
         (map-set user-claims
           { epoch-id: epoch-id, user: tx-sender }
-          { claimed: true, amount: amount, claim-height: block-height })
+          { claimed: true, amount: amount, claim-height: stacks-block-height })
         (map-set epochs epoch-id 
           (merge epoch { claimed-amount: (+ (get claimed-amount epoch) amount) }))
         (ok amount))
@@ -331,7 +339,7 @@
       (unclaimed (- (get total-amount epoch) (get claimed-amount epoch)))
     )
     (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-NOT-AUTHORIZED)
-    (asserts! (> block-height (get claim-deadline epoch)) ERR-EPOCH-NOT-ACTIVE)
+    (asserts! (> stacks-block-height (get claim-deadline epoch)) ERR-EPOCH-NOT-ACTIVE)
     (asserts! (> unclaimed u0) ERR-INVALID-AMOUNT)
     
     ;; Mark epoch as fully claimed/expired

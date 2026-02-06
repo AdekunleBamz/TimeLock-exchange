@@ -70,7 +70,7 @@
 (define-read-only (is-emergency-active)
   (and 
     (var-get emergency-active)
-    (< block-height (var-get emergency-end-block))))
+    (< stacks-block-height (var-get emergency-end-block))))
 
 (define-read-only (get-emergency-status)
   {
@@ -79,7 +79,7 @@
     end-block: (var-get emergency-end-block),
     reason: (var-get emergency-reason),
     blocks-remaining: (if (is-emergency-active)
-                         (- (var-get emergency-end-block) block-height)
+                         (- (var-get emergency-end-block) stacks-block-height)
                          u0)
   })
 
@@ -113,7 +113,7 @@
 (define-read-only (can-trigger-emergency)
   (and
     (not (var-get emergency-active))
-    (> block-height (+ (var-get last-emergency-end) COOLDOWN-PERIOD))))
+    (> stacks-block-height (+ (var-get last-emergency-end) COOLDOWN-PERIOD))))
 
 ;; ============================================================================
 ;; Guardian Management (Owner Only)
@@ -182,8 +182,8 @@
 (define-private (activate-emergency (reason (string-ascii 256)))
   (begin
     (var-set emergency-active true)
-    (var-set emergency-start-block block-height)
-    (var-set emergency-end-block (+ block-height EMERGENCY-DURATION))
+    (var-set emergency-start-block stacks-block-height)
+    (var-set emergency-end-block (+ stacks-block-height EMERGENCY-DURATION))
     (var-set emergency-reason reason)
     
     ;; Reset vote count and increment vote-id for next emergency
@@ -192,8 +192,8 @@
     
     (print {
       event: "emergency-activated",
-      start-block: block-height,
-      end-block: (+ block-height EMERGENCY-DURATION),
+      start-block: stacks-block-height,
+      end-block: (+ stacks-block-height EMERGENCY-DURATION),
       reason: reason
     })
     
@@ -225,11 +225,11 @@
     (asserts! (is-emergency-active) ERR-NOT-IN-EMERGENCY)
     
     (var-set emergency-active false)
-    (var-set last-emergency-end block-height)
+    (var-set last-emergency-end stacks-block-height)
     
     (print {
       event: "emergency-ended-early",
-      end-block: block-height,
+      end-block: stacks-block-height,
       original-end: (var-get emergency-end-block)
     })
     
@@ -270,13 +270,13 @@
     ;; Mark as withdrawn
     (map-set emergency-withdrawals
       { emergency-id: emergency-id, position-id: position-id }
-      { withdrawn: true, amount: u0, timestamp: block-height })
+      { withdrawn: true, amount: u0, timestamp: stacks-block-height })
     
     (print {
       event: "emergency-withdrawal",
       position-id: position-id,
       user: tx-sender,
-      block: block-height
+      block: stacks-block-height
     })
     
     ;; In production, this would call:
@@ -299,7 +299,7 @@
       (begin
         (map-set emergency-withdrawals
           { emergency-id: emergency-id, position-id: position-id }
-          { withdrawn: true, amount: u0, timestamp: block-height })
+          { withdrawn: true, amount: u0, timestamp: stacks-block-height })
         true))))
 
 ;; ============================================================================
@@ -313,7 +313,7 @@
     )
     (map-set guardian-actions
       { guardian: guardian, action-id: action-id }
-      { action: action, timestamp: block-height, details: details })
+      { action: action, timestamp: stacks-block-height, details: details })
     (var-set action-counter (+ action-id u1))
     action-id))
 
@@ -326,11 +326,11 @@
   (begin
     (if (and 
           (var-get emergency-active)
-          (>= block-height (var-get emergency-end-block)))
+          (>= stacks-block-height (var-get emergency-end-block)))
       (begin
         (var-set emergency-active false)
-        (var-set last-emergency-end block-height)
-        (print { event: "emergency-expired", end-block: block-height })
+        (var-set last-emergency-end stacks-block-height)
+        (print { event: "emergency-expired", end-block: stacks-block-height })
         (ok true))
       (ok false))))
 

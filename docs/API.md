@@ -4,13 +4,91 @@
 
 TimeLock Exchange provides a comprehensive REST API and WebSocket connections for interacting with the platform. This document covers all available endpoints, authentication, and usage examples.
 
+**Mainnet Deployer:** `SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT`
+
 ## Base URLs
 
 | Environment | REST API | WebSocket |
 |------------|----------|-----------|
-| Production | `https://api.timelock.exchange/v1` | `wss://api.timelock.exchange/ws` |
+| Production (Mainnet) | `https://api.timelock.exchange/v1` | `wss://api.timelock.exchange/ws` |
 | Testnet | `https://testnet-api.timelock.exchange/v1` | `wss://testnet-api.timelock.exchange/ws` |
 | Development | `http://localhost:3001/api` | `ws://localhost:3001/ws` |
+
+## Mainnet Contracts
+
+All API calls interact with these deployed contracts on Stacks mainnet:
+
+| Contract | Address |
+|----------|---------|
+| TimeLock Exchange | `SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.timelock-exchange-v1` |
+| Fee Collector | `SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.fee-collector-v11-1` |
+| Position NFT | `SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.position-nft-v11-1` |
+| Staking | `SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.staking-v1` |
+| Governance | `SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.governance-v1` |
+| Vault | `SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.vault-v1` |
+| Escrow | `SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.escrow-v1` |
+| Price Oracle | `SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.price-oracle-v1` |
+
+## Stacks SDK Integration
+
+### Required Packages
+
+```bash
+npm install @stacks/connect @stacks/transactions @stacks/network
+```
+
+### Direct Contract Calls with @stacks/transactions
+
+```typescript
+import { 
+  callReadOnlyFunction, 
+  cvToValue, 
+  uintCV, 
+  principalCV 
+} from '@stacks/transactions';
+import { StacksMainnet } from '@stacks/network';
+
+const DEPLOYER = 'SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT';
+const network = new StacksMainnet();
+
+// Read position data
+const result = await callReadOnlyFunction({
+  contractAddress: DEPLOYER,
+  contractName: 'timelock-exchange-v1',
+  functionName: 'get-position',
+  functionArgs: [uintCV(1)],
+  network,
+  senderAddress: DEPLOYER,
+});
+
+const position = cvToValue(result);
+```
+
+### Wallet Transactions with @stacks/connect
+
+```typescript
+import { openContractCall } from '@stacks/connect';
+import { uintCV, PostConditionMode } from '@stacks/transactions';
+import { StacksMainnet } from '@stacks/network';
+
+const DEPLOYER = 'SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT';
+
+// Create a position (1000 STX for 30 days)
+await openContractCall({
+  contractAddress: DEPLOYER,
+  contractName: 'timelock-exchange-v1',
+  functionName: 'create-position',
+  functionArgs: [
+    uintCV(1000 * 1_000_000), // 1000 STX in microSTX
+    uintCV(30),               // 30 days lock
+  ],
+  postConditionMode: PostConditionMode.Deny,
+  network: new StacksMainnet(),
+  onFinish: (data) => {
+    console.log('Transaction submitted:', data.txId);
+  },
+});
+```
 
 ## Authentication
 
@@ -28,17 +106,26 @@ curl -H "Authorization: Bearer YOUR_API_KEY" \
 For write operations, authenticate using a signed message:
 
 ```typescript
-const message = `TimeLock Exchange Authentication\nTimestamp: ${Date.now()}`;
-const signature = await wallet.signMessage(message);
+import { openSignatureRequest } from '@stacks/connect';
 
-fetch('/api/v1/positions', {
-  method: 'POST',
-  headers: {
-    'X-Wallet-Address': walletAddress,
-    'X-Signature': signature,
-    'X-Timestamp': timestamp,
+const message = `TimeLock Exchange Authentication\nTimestamp: ${Date.now()}`;
+
+openSignatureRequest({
+  message,
+  network: new StacksMainnet(),
+  onFinish: ({ signature, publicKey }) => {
+    // Send authenticated request
+    fetch('/api/v1/positions', {
+      method: 'POST',
+      headers: {
+        'X-Wallet-Address': walletAddress,
+        'X-Signature': signature,
+        'X-Public-Key': publicKey,
+        'X-Timestamp': timestamp,
+      },
+      body: JSON.stringify(data),
+    });
   },
-  body: JSON.stringify(data),
 });
 ```
 
@@ -74,7 +161,7 @@ GET /v1/positions
     "positions": [
       {
         "id": 1,
-        "owner": "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",
+        "owner": "SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT",
         "amount": 1000000000,
         "unlockHeight": 150000,
         "createdAt": 140000,

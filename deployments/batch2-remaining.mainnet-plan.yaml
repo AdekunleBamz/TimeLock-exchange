@@ -1,0 +1,38 @@
+---
+id: 2
+name: Mainnet Batch 2 - Price Oracle and Rewards
+network: mainnet
+stacks-node: "https://api.hiro.so"
+bitcoin-node: "http://blockstack:blockstacksystem@bitcoin.blockstack.com:8332"
+plan:
+  batches:
+    - id: 0
+      transactions:
+        - contract-publish:
+            contract-name: price-oracle-v1
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 156480
+            path: contracts/price-oracle.clar
+            anchor-block-only: true
+            clarity-version: 4
+        - contract-publish:
+            contract-name: rewards-distributor-v1
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 108950
+            path: contracts/rewards-distributor.clar
+            anchor-block-only: true
+            clarity-version: 4
+        - contract-publish:
+            contract-name: staking-v1
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 139680
+            path: contracts/staking.clar
+            anchor-block-only: true
+            clarity-version: 4
+        - contract-publish:
+            contract-name: staking-rewards-v1
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 145620
+            path: contracts/staking-rewards.clar
+            anchor-block-only: true
+            clarity-version: 4

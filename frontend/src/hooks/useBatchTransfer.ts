@@ -16,9 +16,12 @@ import {
   ClarityValue,
 } from '@stacks/transactions';
 import { useWallet } from '@/lib/wallet-context';
-import { NETWORK, CONTRACT_ADDRESS } from '@/lib/constants';
+import { CONTRACTS, parseContractId, ACTIVE_NETWORK, NETWORK } from '@/lib/constants';
 
+// ============================================================================
 // Types
+// ============================================================================
+
 export interface Recipient {
   address: string;
   amount: number;
@@ -59,11 +62,24 @@ export interface BatchTransferState {
   estimatedFee: number;
 }
 
-// Constants
-const CONTRACT_NAME = 'batch-transfer';
+// ============================================================================
+// Constants - Using Mainnet Contract Address
+// ============================================================================
+
+/**
+ * Batch Transfer contract deployed on mainnet
+ * @see CONTRACTS.batchTransfer
+ */
+const { address: CONTRACT_ADDRESS, name: CONTRACT_NAME } = parseContractId(CONTRACTS.batchTransfer);
+const BATCH_TRANSFER_CONTRACT = CONTRACTS.batchTransfer; // SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.batch-transfer-v1
+
 const MAX_RECIPIENTS = 200;
 const MIN_AMOUNT = 1; // 1 micro-STX
 const FEE_PER_RECIPIENT = 1000; // Estimated fee per recipient in micro-STX
+
+// ============================================================================
+// Hook Implementation
+// ============================================================================
 
 export function useBatchTransfer() {
   const { address, isConnected } = useWallet();

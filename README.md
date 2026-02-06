@@ -4,6 +4,30 @@ A decentralized timelock exchange built on the Stacks blockchain, featuring posi
 
 > **Built with [`@stacks/connect`](https://connect.stacks.js.org) and [`@stacks/transactions`](https://stacks.js.org)** - The official Stacks.js SDKs for wallet integration and blockchain interactions.
 
+## 🚀 Mainnet Deployment
+
+**All 13 contracts are now deployed to Stacks mainnet!**
+
+| Contract | Mainnet Address |
+|----------|-----------------|
+| Fee Collector | `SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.fee-collector-v11-1` |
+| Position NFT | `SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.position-nft-v11-1` |
+| TimeLock Token | `SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.timelock-token-v11-1` |
+| Batch Transfer | `SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.batch-transfer-v1` |
+| Emergency Withdraw | `SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.emergency-withdraw-v1` |
+| Escrow | `SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.escrow-v1` |
+| Governance | `SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.governance-v1` |
+| Price Oracle | `SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.price-oracle-v1` |
+| Rewards Distributor | `SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.rewards-distributor-v1` |
+| Staking | `SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.staking-v1` |
+| Staking Rewards | `SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.staking-rewards-v2` |
+| TimeLock Exchange | `SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.timelock-exchange-v1` |
+| Vault | `SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.vault-v1` |
+
+**Deployer Address:** `SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT`
+
+View contracts on [Stacks Explorer](https://explorer.hiro.so/address/SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT)
+
 ## 🏗️ Project Structure
 
 ```
@@ -184,29 +208,29 @@ import {
   uintCV,
   principalCV,
 } from '@stacks/transactions';
-import { StacksTestnet } from '@stacks/network';
+import { StacksMainnet } from '@stacks/network';
 
-// Get position count
-const network = new StacksTestnet();
+// Get position count from mainnet
+const network = new StacksMainnet();
 const result = await callReadOnlyFunction({
-  contractAddress: 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM',
-  contractName: 'timelock-exchange',
+  contractAddress: 'SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT',
+  contractName: 'timelock-exchange-v1',
   functionName: 'get-position-count',
   functionArgs: [],
   network,
-  senderAddress: 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM',
+  senderAddress: 'SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT',
 });
 
 const count = cvToValue(result); // { value: 42 }
 
 // Get specific position
 const position = await callReadOnlyFunction({
-  contractAddress: 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM',
-  contractName: 'timelock-exchange',
+  contractAddress: 'SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT',
+  contractName: 'timelock-exchange-v1',
   functionName: 'get-position',
   functionArgs: [uintCV(1)], // Position ID 1
   network,
-  senderAddress: 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM',
+  senderAddress: 'SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT',
 });
 ```
 
@@ -221,10 +245,10 @@ import {
   FungibleConditionCode,
 } from '@stacks/transactions';
 
-// Create a new timelock position
+// Create a new timelock position on mainnet
 openContractCall({
-  contractAddress: 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM',
-  contractName: 'timelock-exchange',
+  contractAddress: 'SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT',
+  contractName: 'timelock-exchange-v1',
   functionName: 'create-position',
   functionArgs: [
     uintCV(1000000),   // amount: 1 STX in microSTX
@@ -241,7 +265,7 @@ openContractCall({
   ],
   onFinish: (data) => {
     console.log('Transaction submitted:', data.txId);
-    // View on explorer: https://explorer.stacks.co/txid/0x...
+    // View on explorer: https://explorer.hiro.so/txid/0x...
   },
   onCancel: () => {
     console.log('User cancelled transaction');
@@ -459,10 +483,28 @@ Open [http://localhost:3000](http://localhost:3000) to see the app.
 Create `frontend/.env.local`:
 
 ```env
-NEXT_PUBLIC_NETWORK=testnet
-NEXT_PUBLIC_TIMELOCK_EXCHANGE_CONTRACT=ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.timelock-exchange
-NEXT_PUBLIC_POSITION_NFT_CONTRACT=ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.position-nft
-NEXT_PUBLIC_FEE_COLLECTOR_CONTRACT=ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.fee-collector
+# Mainnet Configuration (DEPLOYED)
+NEXT_PUBLIC_NETWORK=mainnet
+NEXT_PUBLIC_CONTRACT_ADDRESS=SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+
+# Core Contracts
+NEXT_PUBLIC_TIMELOCK_EXCHANGE_CONTRACT=SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.timelock-exchange-v1
+NEXT_PUBLIC_POSITION_NFT_CONTRACT=SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.position-nft-v11-1
+NEXT_PUBLIC_FEE_COLLECTOR_CONTRACT=SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.fee-collector-v11-1
+NEXT_PUBLIC_TIMELOCK_TOKEN_CONTRACT=SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.timelock-token-v11-1
+
+# Utility Contracts
+NEXT_PUBLIC_BATCH_TRANSFER_CONTRACT=SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.batch-transfer-v1
+NEXT_PUBLIC_EMERGENCY_WITHDRAW_CONTRACT=SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.emergency-withdraw-v1
+NEXT_PUBLIC_ESCROW_CONTRACT=SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.escrow-v1
+NEXT_PUBLIC_GOVERNANCE_CONTRACT=SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.governance-v1
+
+# Trading Contracts
+NEXT_PUBLIC_PRICE_ORACLE_CONTRACT=SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.price-oracle-v1
+NEXT_PUBLIC_REWARDS_DISTRIBUTOR_CONTRACT=SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.rewards-distributor-v1
+NEXT_PUBLIC_STAKING_CONTRACT=SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.staking-v1
+NEXT_PUBLIC_STAKING_REWARDS_CONTRACT=SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.staking-rewards-v2
+NEXT_PUBLIC_VAULT_CONTRACT=SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.vault-v1
 ```
 
 ### Network Configuration
@@ -471,7 +513,11 @@ Edit `frontend/src/lib/constants.ts` to change the active network:
 
 ```typescript
 // Available networks: 'mainnet' | 'testnet' | 'devnet'
-export const ACTIVE_NETWORK: 'mainnet' | 'testnet' | 'devnet' = 'testnet';
+// Default is mainnet for production deployment
+export const ACTIVE_NETWORK: 'mainnet' | 'testnet' | 'devnet' = 'mainnet';
+
+// Deployer address for mainnet contracts
+export const DEPLOYER_ADDRESS = 'SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT';
 
 // App details for wallet connection
 export const APP_DETAILS = {

@@ -53,7 +53,7 @@
   {
     price: uint,
     timestamp: uint,
-    block-height: uint,
+    stacks-block-height: uint,
     num-reporters: uint,
     confidence: uint
   })
@@ -64,7 +64,7 @@
   {
     price: uint,
     timestamp: uint,
-    block-height: uint
+    stacks-block-height: uint
   })
 
 ;; TWAP tracking
@@ -92,7 +92,7 @@
   {
     price: uint,
     timestamp: uint,
-    block-height: uint
+    stacks-block-height: uint
   })
 
 ;; Current reporting round
@@ -118,7 +118,7 @@
 (define-read-only (get-latest-price (pair (string-ascii 20)))
   (match (map-get? prices pair)
     price-data
-      (if (<= (- block-height (get block-height price-data)) MAX-PRICE-AGE)
+      (if (<= (- stacks-block-height (get stacks-block-height price-data)) MAX-PRICE-AGE)
         (ok (get price price-data))
         ERR-STALE-PRICE)
     ERR-PAIR-NOT-FOUND))
@@ -136,7 +136,7 @@
 ;; Check if price is stale
 (define-read-only (is-price-stale (pair (string-ascii 20)))
   (match (map-get? prices pair)
-    price-data (> (- block-height (get block-height price-data)) MAX-PRICE-AGE)
+    price-data (> (- stacks-block-height (get stacks-block-height price-data)) MAX-PRICE-AGE)
     true))
 
 ;; Get reporter info
@@ -228,14 +228,14 @@
         min-reporters: MIN-REPORTERS,
         max-deviation: MAX-DEVIATION,
         is-active: true,
-        created-at: block-height
+        created-at: stacks-block-height
       })
     
     ;; Initialize TWAP state
     (map-set twap-state pair
       {
         cumulative-price: u0,
-        last-update: block-height,
+        last-update: stacks-block-height,
         observation-index: u0,
         twap-price: u0
       })
@@ -244,7 +244,7 @@
     (map-set reporting-rounds pair
       {
         round-id: u1,
-        start-block: block-height,
+        start-block: stacks-block-height,
         reports-count: u0,
         is-finalized: false
       })
@@ -271,7 +271,7 @@
     (asserts! (get is-active pair-info) ERR-PAIR-NOT-FOUND)
     (asserts! (get is-active reporter-info) ERR-NOT-AUTHORIZED)
     (asserts! (> price u0) ERR-INVALID-PRICE)
-    (asserts! (>= (- block-height (get last-report-block reporter-info)) REPORT-COOLDOWN) ERR-COOLDOWN-ACTIVE)
+    (asserts! (>= (- stacks-block-height (get last-report-block reporter-info)) REPORT-COOLDOWN) ERR-COOLDOWN-ACTIVE)
     
     ;; Check deviation from current price if exists
     (match (map-get? prices pair)
@@ -291,15 +291,15 @@
       { pair: pair, reporter: tx-sender, round: round-id }
       {
         price: price,
-        timestamp: (unwrap-panic (get-block-info? time block-height)),
-        block-height: block-height
+        timestamp: (unwrap-panic (get-stacks-block-info? time stacks-block-height)),
+        stacks-block-height: stacks-block-height
       })
     
     ;; Update reporter stats
     (map-set reporters tx-sender
       (merge reporter-info {
         total-reports: (+ (get total-reports reporter-info) u1),
-        last-report-block: block-height
+        last-report-block: stacks-block-height
       }))
     
     ;; Update round info
@@ -317,7 +317,7 @@
     })
     
     ;; Try to aggregate if enough reports
-    (try-aggregate-price pair)
+    (try! (try-aggregate-price pair))
     
     (ok true)))
 
@@ -329,8 +329,8 @@
 (define-private (try-aggregate-price (pair (string-ascii 20)))
   (let
     (
-      (pair-info (unwrap! (map-get? pairs pair) (ok false)))
-      (round-info (unwrap! (map-get? reporting-rounds pair) (ok false)))
+      (pair-info (unwrap! (map-get? pairs pair) (err u0)))
+      (round-info (unwrap! (map-get? reporting-rounds pair) (err u0)))
     )
     (if (>= (get reports-count round-info) (get min-reporters pair-info))
       (aggregate-and-finalize pair round-info)
@@ -344,7 +344,7 @@
       ;; For simplicity, using last reported price
       ;; In production, would calculate median or weighted average
       (round-id (get round-id round-info))
-      (timestamp (unwrap-panic (get-block-info? time block-height)))
+      (timestamp stacks-block-height)
     )
     ;; Mark round as finalized
     (map-set reporting-rounds pair
@@ -354,7 +354,7 @@
     (map-set reporting-rounds pair
       {
         round-id: (+ round-id u1),
-        start-block: block-height,
+        start-block: stacks-block-height,
         reports-count: u0,
         is-finalized: false
       })
@@ -369,14 +369,14 @@
     
     (let
       (
-        (timestamp (unwrap-panic (get-block-info? time block-height)))
+        (timestamp (unwrap-panic (get-stacks-block-info? time stacks-block-height)))
       )
       ;; Update current price
       (map-set prices pair
         {
           price: price,
           timestamp: timestamp,
-          block-height: block-height,
+          stacks-block-height: stacks-block-height,
           num-reporters: u1,
           confidence: u10000
         })
@@ -396,7 +396,7 @@
     state
       (let
         (
-          (time-elapsed (- block-height (get last-update state)))
+          (time-elapsed (- stacks-block-height (get last-update state)))
           (new-cumulative (+ (get cumulative-price state) (* price time-elapsed)))
           (new-index (mod (+ (get observation-index state) u1) TWAP-WINDOW))
           (new-twap (if (> time-elapsed u0)
@@ -408,15 +408,15 @@
           { pair: pair, index: new-index }
           {
             price: price,
-            timestamp: (unwrap-panic (get-block-info? time block-height)),
-            block-height: block-height
+            timestamp: (unwrap-panic (get-stacks-block-info? time stacks-block-height)),
+            stacks-block-height: stacks-block-height
           })
         
         ;; Update TWAP state
         (map-set twap-state pair
           {
             cumulative-price: new-cumulative,
-            last-update: block-height,
+            last-update: stacks-block-height,
             observation-index: new-index,
             twap-price: new-twap
           })
@@ -479,4 +479,4 @@
 (define-read-only (get-price-usd (pair (string-ascii 20)))
   (match (get-latest-price pair)
     price (ok (/ price (pow u10 (- PRICE-DECIMALS u2))))
-    err-val err-val))
+    err-val (err err-val)))

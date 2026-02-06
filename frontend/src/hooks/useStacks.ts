@@ -64,7 +64,7 @@ import {
   deserializeCV,
 } from '@stacks/transactions';
 import { StacksMainnet, StacksTestnet, StacksDevnet, StacksNetwork } from '@stacks/network';
-import { ACTIVE_NETWORK, APP_DETAILS, CONTRACTS, parseContractId } from '@/lib/constants';
+import { ACTIVE_NETWORK, APP_DETAILS, CONTRACTS, parseContractId, NETWORK, DEPLOYER_ADDRESS } from '@/lib/constants';
 
 // ============================================================================
 // Types
@@ -79,6 +79,8 @@ export interface StacksAuthState {
     testnet: string | null;
   };
   publicKey: string | null;
+  network: typeof ACTIVE_NETWORK;
+  isMainnet: boolean;
   connect: () => Promise<void>;
   disconnect: () => void;
   signMessage: (message: string) => Promise<string | null>;
@@ -238,6 +240,8 @@ export function useStacksAuth(): StacksAuthState {
     address,
     addresses,
     publicKey,
+    network: ACTIVE_NETWORK,
+    isMainnet: ACTIVE_NETWORK === 'mainnet',
     connect,
     disconnect,
     signMessage,

@@ -1,9 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useWallet } from '../lib/wallet-context';
-import { TIMELOCK_EXCHANGE_CONTRACT, getPauseStatus } from '../lib/contracts';
+import { getPauseStatus } from '../lib/contracts';
+import { CONTRACTS, parseContractId } from '../lib/constants';
 import type { PauseStatus } from '../lib/types';
 import { openContractCall } from '@stacks/connect';
 import { callReadOnlyFunction, cvToValue, standardPrincipalCV } from '@stacks/transactions';
+
+// Contract configuration for mainnet
+const { address: CONTRACT_ADDRESS, name: CONTRACT_NAME } = parseContractId(CONTRACTS.timelockExchange);
+const TIMELOCK_EXCHANGE_CONTRACT = { address: CONTRACT_ADDRESS, name: CONTRACT_NAME };
 
 interface UseContractStatusReturn {
   isPaused: boolean;

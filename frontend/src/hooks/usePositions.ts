@@ -1,13 +1,28 @@
+/**
+ * usePositions - React hook for managing timelock positions
+ * 
+ * This hook provides functions for fetching and managing user positions
+ * on the TimeLock Exchange. Uses @stacks/transactions for contract queries.
+ * 
+ * Contract: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.timelock-exchange-v1
+ */
+
 import { useState, useEffect, useCallback } from 'react';
 import { useWallet } from '../lib/wallet-context';
 import { getPosition, getTotalLockedValue, calculateEarlyWithdrawalPenalty } from '../lib/contracts';
+import { CONTRACTS, parseContractId, ACTIVE_NETWORK } from '../lib/constants';
 import type { Position, PositionMetadata, EarlyWithdrawalInfo } from '../lib/types';
+
+// Contract configuration for mainnet
+const { address: CONTRACT_ADDRESS, name: CONTRACT_NAME } = parseContractId(CONTRACTS.timelockExchange);
+const TIMELOCK_CONTRACT = CONTRACTS.timelockExchange; // SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.timelock-exchange-v1
 
 interface UsePositionsReturn {
   positions: Position[];
   isLoading: boolean;
   error: string | null;
   totalLocked: bigint;
+  contractAddress: string;
   refetch: () => Promise<void>;
   getPositionDetails: (id: number) => Promise<PositionMetadata | null>;
   getEarlyWithdrawalInfo: (id: number) => Promise<EarlyWithdrawalInfo | null>;
@@ -122,6 +137,10 @@ export function usePositions(): UsePositionsReturn {
     refetch: fetchPositions,
     getPositionDetails,
     getEarlyWithdrawalInfo,
+    // Contract configuration for mainnet
+    contractAddress: CONTRACT_ADDRESS,
+    contractName: CONTRACT_NAME,
+    timelockContract: TIMELOCK_CONTRACT,
   };
 }
 

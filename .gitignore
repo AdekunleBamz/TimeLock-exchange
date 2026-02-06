@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Cache
+.cache/
+.clarinet/
+*.log
+
+# Environment and secrets - CRITICAL: Never commit mnemonics or private keys!
+settings/Mainnet.toml
+settings/Testnet.toml
+settings/Devnet.toml
+settings/Simnet.toml
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Test outputs
+coverage/
+.nyc_output/
+
+# Temporary files
+tmp/
+temp/
+*.tmp

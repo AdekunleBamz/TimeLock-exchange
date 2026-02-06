@@ -19,7 +19,7 @@
 ;; Configuration Constants
 (define-constant MIN_LOCK_DURATION u86400)       ;; 1 day in seconds
 (define-constant MAX_LOCK_DURATION u31536000)    ;; 1 year in seconds
-(define-constant MIN_DEPOSIT_AMOUNT u1000000)    ;; 1 STX minimum (in micro-STX)
+(define-constant MIN_DEPOSIT_AMOUNT u100000)     ;; 0.1 STX minimum (in micro-STX)
 (define-constant BASE_FEE_BPS u50)               ;; 0.5% base fee
 (define-constant EARLY_WITHDRAWAL_PENALTY_BPS u1000)  ;; 10% penalty for early withdrawal
 (define-constant MAX_PENALTY_BPS u2500)          ;; 25% maximum penalty
@@ -147,23 +147,21 @@
   )
     (asserts! (< key-count u5) ERR_ALREADY_EXISTS) ;; Max 5 passkeys per user
     
-    ;; Store in legacy registry for backwards compatibility
-    (if (is-eq key-count u0)
-      (map-set passkey-registry tx-sender public-key)
-      true
-    )
-    
-    ;; Store in multi-passkey registry
-    (map-set user-passkeys 
-      { user: tx-sender, key-index: new-index }
-      {
-        public-key: public-key,
-        name: "Default",
-        created-at: stacks-block-time,
-        is-active: true
-      }
-    )
-    (map-set user-passkey-count tx-sender (+ key-count u1))
+    ;; Store in legacy registry for backwards compatibility, then multi-passkey registry
+    (asserts! (and
+      (if (is-eq key-count u0)
+        (map-set passkey-registry tx-sender public-key)
+        true)
+      (map-set user-passkeys 
+        { user: tx-sender, key-index: new-index }
+        {
+          public-key: public-key,
+          name: "Default",
+          created-at: stacks-block-time,
+          is-active: true
+        })
+      (map-set user-passkey-count tx-sender (+ key-count u1)))
+      ERR_NOT_FOUND)
     
     (print {
       event: "passkey-registered",
@@ -181,21 +179,21 @@
   )
     (asserts! (< key-count u5) ERR_ALREADY_EXISTS)
     
-    (if (is-eq key-count u0)
-      (map-set passkey-registry tx-sender public-key)
-      true
-    )
-    
-    (map-set user-passkeys 
-      { user: tx-sender, key-index: new-index }
-      {
-        public-key: public-key,
-        name: name,
-        created-at: stacks-block-time,
-        is-active: true
-      }
-    )
-    (map-set user-passkey-count tx-sender (+ key-count u1))
+    ;; Chain all map operations
+    (asserts! (and
+      (if (is-eq key-count u0)
+        (map-set passkey-registry tx-sender public-key)
+        true)
+      (map-set user-passkeys 
+        { user: tx-sender, key-index: new-index }
+        {
+          public-key: public-key,
+          name: name,
+          created-at: stacks-block-time,
+          is-active: true
+        })
+      (map-set user-passkey-count tx-sender (+ key-count u1)))
+      ERR_NOT_FOUND)
     
     (print {
       event: "passkey-registered",
@@ -247,15 +245,15 @@
   )
     (asserts! (> key-count u0) ERR_NOT_FOUND)
     
-    ;; Revoke each passkey (up to 5)
-    (and (>= key-count u1) (revoke-passkey-internal tx-sender u0))
-    (and (>= key-count u2) (revoke-passkey-internal tx-sender u1))
-    (and (>= key-count u3) (revoke-passkey-internal tx-sender u2))
-    (and (>= key-count u4) (revoke-passkey-internal tx-sender u3))
-    (and (>= key-count u5) (revoke-passkey-internal tx-sender u4))
-    
-    ;; Clear legacy registry
-    (map-delete passkey-registry tx-sender)
+    ;; Revoke each passkey (up to 5) and clear legacy registry - chain all operations
+    (asserts! (and
+      (or (< key-count u1) (revoke-passkey-internal tx-sender u0))
+      (or (< key-count u2) (revoke-passkey-internal tx-sender u1))
+      (or (< key-count u3) (revoke-passkey-internal tx-sender u2))
+      (or (< key-count u4) (revoke-passkey-internal tx-sender u3))
+      (or (< key-count u5) (revoke-passkey-internal tx-sender u4))
+      (map-delete passkey-registry tx-sender))
+      ERR_NOT_FOUND)
     
     (print {
       event: "all-passkeys-revoked",
@@ -344,9 +342,9 @@
     (current-positions (default-to (list) (map-get? user-positions user)))
     (current-count (default-to u0 (map-get? user-position-count user)))
   )
-    (map-set user-positions user (unwrap! (as-max-len? (append current-positions position-id) u100) false))
-    (map-set user-position-count user (+ current-count u1))
-    true))
+    (and
+      (map-set user-positions user (unwrap! (as-max-len? (append current-positions position-id) u100) false))
+      (map-set user-position-count user (+ current-count u1)))))
 
 ;; Create a new time-locked position
 (define-public (create-position (amount uint) (lock-duration uint))
@@ -362,7 +360,7 @@
     (asserts! (<= lock-duration MAX_LOCK_DURATION) ERR_INVALID_DURATION)
 
     ;; Transfer STX to contract
-    (try! (stx-transfer? amount tx-sender (as-contract tx-sender)))
+    (try! (stx-transfer? amount tx-sender current-contract))
 
     ;; Create position record
     (map-set positions position-id {
@@ -410,7 +408,7 @@
     (asserts! (<= lock-duration MAX_LOCK_DURATION) ERR_INVALID_DURATION)
 
     ;; Transfer STX to contract
-    (try! (stx-transfer? amount tx-sender (as-contract tx-sender)))
+    (try! (stx-transfer? amount tx-sender current-contract))
 
     ;; Create position record with passkey protection
     (map-set positions position-id {
@@ -456,7 +454,7 @@
     (asserts! (>= current-time (get unlock-time position)) ERR_POSITION_LOCKED)
 
     ;; Transfer STX back to owner
-    (try! (as-contract (stx-transfer? (get amount position) tx-sender (get owner position))))
+    (try! (as-contract? ((with-stx (get amount position))) (try! (stx-transfer? (get amount position) tx-sender (get owner position)))))
 
     ;; Update position to inactive
     (map-set positions position-id (merge position { is-active: false }))
@@ -496,7 +494,7 @@
     (asserts! (secp256r1-verify message-hash signature user-pubkey) ERR_NOT_AUTHORIZED)
 
     ;; Transfer STX back to owner
-    (try! (as-contract (stx-transfer? (get amount position) tx-sender (get owner position))))
+    (try! (as-contract? ((with-stx (get amount position))) (try! (stx-transfer? (get amount position) tx-sender (get owner position)))))
 
     ;; Update position to inactive
     (map-set positions position-id (merge position { is-active: false }))
@@ -558,7 +556,7 @@
     (asserts! (> amount-after-penalty u0) ERR_ZERO_AMOUNT)
 
     ;; Transfer amount minus penalty to owner
-    (try! (as-contract (stx-transfer? amount-after-penalty tx-sender (get owner position))))
+    (try! (as-contract? ((with-stx amount-after-penalty)) (try! (stx-transfer? amount-after-penalty tx-sender (get owner position)))))
 
     ;; Transfer penalty to fee collector (or keep in contract for now)
     ;; In production, this would go to a fee distribution contract
@@ -672,13 +670,12 @@
   (let (
     (current-positions (default-to (list) (map-get? user-positions user)))
     (current-count (default-to u0 (map-get? user-position-count user)))
-    (new-positions (filter not-matching-position current-positions))
   )
-    ;; Store for filter context
+    ;; Set filter target first, then chain map operations
     (var-set filter-target-position position-id)
-    (map-set user-positions user new-positions)
-    (map-set user-position-count user (if (> current-count u0) (- current-count u1) u0))
-    true))
+    (and
+      (map-set user-positions user (filter not-matching-position current-positions))
+      (map-set user-position-count user (if (> current-count u0) (- current-count u1) u0)))))
 
 ;; Filter target for position removal
 (define-data-var filter-target-position uint u0)
@@ -739,7 +736,7 @@
     (asserts! (> additional-amount u0) ERR_ZERO_AMOUNT)
 
     ;; Transfer additional STX to contract
-    (try! (stx-transfer? additional-amount tx-sender (as-contract tx-sender)))
+    (try! (stx-transfer? additional-amount tx-sender current-contract))
 
     ;; Update position with additional amount
     (map-set positions position-id (merge position { amount: new-amount }))

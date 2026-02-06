@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useWallet } from '../lib/wallet-context';
+import { CONTRACTS, parseContractId, ACTIVE_NETWORK } from '../lib/constants';
 
 // ============================================================================
 // Types
@@ -106,10 +107,15 @@ export interface UseGovernanceReturn {
 }
 
 // ============================================================================
-// Constants
+// Constants - Using Mainnet Contract Addresses
 // ============================================================================
 
-const GOVERNANCE_CONTRACT = 'SP000000000000000000002Q6VF78.governance';
+/**
+ * Governance contract deployed on mainnet
+ * @see CONTRACTS.governance
+ */
+const { address: GOVERNANCE_ADDRESS, name: GOVERNANCE_NAME } = parseContractId(CONTRACTS.governance);
+const GOVERNANCE_CONTRACT = CONTRACTS.governance; // SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.governance-v1
 
 const DEFAULT_OPTIONS: UseGovernanceOptions = {
   autoRefresh: true,

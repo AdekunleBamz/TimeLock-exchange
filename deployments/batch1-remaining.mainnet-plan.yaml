@@ -1,0 +1,38 @@
+---
+id: 1
+name: Mainnet Batch 1 - Core Infrastructure
+network: mainnet
+stacks-node: "https://api.hiro.so"
+bitcoin-node: "http://blockstack:blockstacksystem@bitcoin.blockstack.com:8332"
+plan:
+  batches:
+    - id: 0
+      transactions:
+        - contract-publish:
+            contract-name: batch-transfer-v1
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 124620
+            path: contracts/batch-transfer.clar
+            anchor-block-only: true
+            clarity-version: 4
+        - contract-publish:
+            contract-name: emergency-withdraw-v1
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 122980
+            path: contracts/emergency-withdraw.clar
+            anchor-block-only: true
+            clarity-version: 4
+        - contract-publish:
+            contract-name: escrow-v1
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 152140
+            path: contracts/escrow.clar
+            anchor-block-only: true
+            clarity-version: 4
+        - contract-publish:
+            contract-name: governance-v1
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 159730
+            path: contracts/governance.clar
+            anchor-block-only: true
+            clarity-version: 4

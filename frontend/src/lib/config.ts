@@ -1,15 +1,45 @@
 /**
  * Environment Configuration
  * Centralized configuration based on environment variables
+ * 
+ * Uses @stacks/connect for wallet authentication
+ * Uses @stacks/transactions for blockchain interactions
  */
+
+import { DEPLOYER_ADDRESS, MAINNET_CONTRACTS, TESTNET_CONTRACTS } from './constants';
 
 export type NetworkType = 'devnet' | 'testnet' | 'mainnet';
 
+// ============================================================================
+// Extended Contract Configuration for All 13 Deployed Contracts
+// ============================================================================
+
 interface ContractConfig {
+  // Deployer address
   address: string;
-  timelockExchange: string;
-  positionNft: string;
+  
+  // Core contracts (batch 0)
   feeCollector: string;
+  positionNft: string;
+  timelockToken: string;
+  
+  // Utility contracts (batch 1)
+  batchTransfer: string;
+  emergencyWithdraw: string;
+  escrow: string;
+  governance: string;
+  
+  // Trading contracts (batch 2)
+  priceOracle: string;
+  rewardsDistributor: string;
+  staking: string;
+  
+  // Rewards (staking-rewards-v2)
+  stakingRewards: string;
+  
+  // Exchange contracts (batch 3)
+  timelockExchange: string;
+  vault: string;
 }
 
 interface ApiConfig {
@@ -22,6 +52,11 @@ interface FeatureFlags {
   enablePasskeys: boolean;
   enableEarlyWithdrawal: boolean;
   enableAdminPanel: boolean;
+  enableStaking: boolean;
+  enableGovernance: boolean;
+  enableEscrow: boolean;
+  enableVault: boolean;
+  enableBatchTransfer: boolean;
 }
 
 interface AppConfig {
@@ -38,17 +73,46 @@ function getNetwork(): NetworkType {
   if (['devnet', 'testnet', 'mainnet'].includes(network)) {
     return network;
   }
-  return 'devnet';
+  // Default to mainnet for production deployment
+  return 'mainnet';
 }
 
 function getContractConfig(): ContractConfig {
-  const address = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM';
+  const network = getNetwork();
+  const isMainnet = network === 'mainnet';
+  
+  // Use mainnet deployer for mainnet, testnet deployer for others
+  const address = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || 
+    (isMainnet ? DEPLOYER_ADDRESS : 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM');
+  
+  // Select contract set based on network
+  const contracts = isMainnet ? MAINNET_CONTRACTS : TESTNET_CONTRACTS;
   
   return {
     address,
-    timelockExchange: process.env.NEXT_PUBLIC_TIMELOCK_EXCHANGE_CONTRACT || `${address}.timelock-exchange`,
-    positionNft: process.env.NEXT_PUBLIC_POSITION_NFT_CONTRACT || `${address}.position-nft`,
-    feeCollector: process.env.NEXT_PUBLIC_FEE_COLLECTOR_CONTRACT || `${address}.fee-collector`,
+    
+    // Core contracts (batch 0)
+    feeCollector: process.env.NEXT_PUBLIC_FEE_COLLECTOR_CONTRACT || contracts.feeCollector,
+    positionNft: process.env.NEXT_PUBLIC_POSITION_NFT_CONTRACT || contracts.positionNft,
+    timelockToken: process.env.NEXT_PUBLIC_TIMELOCK_TOKEN_CONTRACT || contracts.timelockToken,
+    
+    // Utility contracts (batch 1)
+    batchTransfer: process.env.NEXT_PUBLIC_BATCH_TRANSFER_CONTRACT || contracts.batchTransfer,
+    emergencyWithdraw: process.env.NEXT_PUBLIC_EMERGENCY_WITHDRAW_CONTRACT || contracts.emergencyWithdraw,
+    escrow: process.env.NEXT_PUBLIC_ESCROW_CONTRACT || contracts.escrow,
+    governance: process.env.NEXT_PUBLIC_GOVERNANCE_CONTRACT || contracts.governance,
+    
+    // Trading contracts (batch 2)
+    priceOracle: process.env.NEXT_PUBLIC_PRICE_ORACLE_CONTRACT || contracts.priceOracle,
+    rewardsDistributor: process.env.NEXT_PUBLIC_REWARDS_DISTRIBUTOR_CONTRACT || contracts.rewardsDistributor,
+    staking: process.env.NEXT_PUBLIC_STAKING_CONTRACT || contracts.staking,
+    
+    // Rewards (staking-rewards-v2)
+    stakingRewards: process.env.NEXT_PUBLIC_STAKING_REWARDS_CONTRACT || contracts.stakingRewards,
+    
+    // Exchange contracts (batch 3)
+    timelockExchange: process.env.NEXT_PUBLIC_TIMELOCK_EXCHANGE_CONTRACT || contracts.timelockExchange,
+    vault: process.env.NEXT_PUBLIC_VAULT_CONTRACT || contracts.vault,
   };
 }
 
@@ -82,6 +146,11 @@ function getFeatureFlags(): FeatureFlags {
     enablePasskeys: process.env.NEXT_PUBLIC_ENABLE_PASSKEYS !== 'false',
     enableEarlyWithdrawal: process.env.NEXT_PUBLIC_ENABLE_EARLY_WITHDRAWAL !== 'false',
     enableAdminPanel: process.env.NEXT_PUBLIC_ENABLE_ADMIN_PANEL === 'true',
+    enableStaking: process.env.NEXT_PUBLIC_ENABLE_STAKING !== 'false',
+    enableGovernance: process.env.NEXT_PUBLIC_ENABLE_GOVERNANCE !== 'false',
+    enableEscrow: process.env.NEXT_PUBLIC_ENABLE_ESCROW !== 'false',
+    enableVault: process.env.NEXT_PUBLIC_ENABLE_VAULT !== 'false',
+    enableBatchTransfer: process.env.NEXT_PUBLIC_ENABLE_BATCH_TRANSFER !== 'false',
   };
 }
 

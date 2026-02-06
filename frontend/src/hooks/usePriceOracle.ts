@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { CONTRACTS, parseContractId, ACTIVE_NETWORK } from '../lib/constants';
 
 // ============================================================================
 // Types
@@ -68,8 +69,15 @@ export interface UsePriceOracleReturn {
 }
 
 // ============================================================================
-// Constants
+// Constants - Using Mainnet Contract Address
 // ============================================================================
+
+/**
+ * Price Oracle contract deployed on mainnet
+ * @see CONTRACTS.priceOracle
+ */
+const { address: PRICE_ORACLE_ADDRESS, name: PRICE_ORACLE_NAME } = parseContractId(CONTRACTS.priceOracle);
+const PRICE_ORACLE_CONTRACT = CONTRACTS.priceOracle; // SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT.price-oracle-v1
 
 const DEFAULT_PAIRS = ['STX/USD', 'BTC/USD'];
 const DEFAULT_OPTIONS: UsePriceOracleOptions = {

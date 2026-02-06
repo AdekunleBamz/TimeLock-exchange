@@ -412,10 +412,10 @@
       { proposal-id: proposal-id }
       (merge proposal
         (if (is-eq support u1)
-          { for-votes: (+ (get for-votes proposal) voter-power) }
+          { for-votes: (+ (get for-votes proposal) voter-power), against-votes: (get against-votes proposal), abstain-votes: (get abstain-votes proposal) }
           (if (is-eq support u0)
-            { against-votes: (+ (get against-votes proposal) voter-power) }
-            { abstain-votes: (+ (get abstain-votes proposal) voter-power) }
+            { for-votes: (get for-votes proposal), against-votes: (+ (get against-votes proposal) voter-power), abstain-votes: (get abstain-votes proposal) }
+            { for-votes: (get for-votes proposal), against-votes: (get against-votes proposal), abstain-votes: (+ (get abstain-votes proposal) voter-power) }
           )
         )
       )

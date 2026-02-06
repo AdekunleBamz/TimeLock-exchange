@@ -4,6 +4,16 @@ import React, { useState, useMemo } from 'react';
 import { usePositionHistory, PositionHistoryFilters, PositionHistoryEvent } from '../hooks/usePositionHistory';
 import { useWallet } from '../lib/wallet-context';
 import { formatSTX, formatDate, truncateAddress } from '../lib/utils';
+import { CONTRACTS, DEPLOYER_ADDRESS, ACTIVE_NETWORK } from '../lib/constants';
+
+// Mainnet contracts for position history
+const POSITION_NFT_CONTRACT = CONTRACTS.positionNft;
+const TIMELOCK_CONTRACT = CONTRACTS.timelockExchange;
+
+// Explorer URL for transaction links
+const EXPLORER_BASE_URL = ACTIVE_NETWORK === 'mainnet'
+  ? 'https://explorer.stacks.co'
+  : 'https://explorer.stacks.co/?chain=testnet';
 
 interface PositionHistoryProps {
   positionId?: number;

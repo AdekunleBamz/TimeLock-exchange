@@ -4,6 +4,12 @@ import React, { useState } from 'react';
 import { usePortfolioAnalytics, PortfolioProjection } from '../hooks/usePortfolioAnalytics';
 import { useWallet } from '../lib/wallet-context';
 import { formatSTX } from '../lib/utils';
+import { CONTRACTS, DEPLOYER_ADDRESS, ACTIVE_NETWORK } from '../lib/constants';
+
+// Mainnet contracts for portfolio tracking
+const POSITION_NFT_CONTRACT = CONTRACTS.positionNft;
+const TIMELOCK_CONTRACT = CONTRACTS.timelockExchange;
+const STAKING_CONTRACT = CONTRACTS.staking;
 
 export function PortfolioAnalytics() {
   const { address } = useWallet();

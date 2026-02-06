@@ -93,3 +93,88 @@ export function debounce<T extends (...args: unknown[]) => unknown>(
     timeout = setTimeout(() => func(...args), wait);
   };
 }
+
+/**
+ * Truncate address for display (alias for formatAddress)
+ */
+export function truncateAddress(address: string, startChars = 6, endChars = 4): string {
+  if (!address) return '';
+  if (address.length <= startChars + endChars) return address;
+  return `${address.slice(0, startChars)}...${address.slice(-endChars)}`;
+}
+
+/**
+ * Format a number with commas and optional decimal places
+ */
+export function formatNumber(num: number, decimals = 2): string {
+  return num.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: decimals,
+  });
+}
+
+/**
+ * Format a percentage value
+ */
+export function formatPercent(value: number, decimals = 2): string {
+  return `${(value * 100).toFixed(decimals)}%`;
+}
+
+/**
+ * Format a large number with abbreviations (K, M, B)
+ */
+export function formatCompact(num: number): string {
+  if (num >= 1_000_000_000) {
+    return `${(num / 1_000_000_000).toFixed(2)}B`;
+  }
+  if (num >= 1_000_000) {
+    return `${(num / 1_000_000).toFixed(2)}M`;
+  }
+  if (num >= 1_000) {
+    return `${(num / 1_000).toFixed(2)}K`;
+  }
+  return num.toString();
+}
+
+/**
+ * Validate Stacks address format
+ */
+export function isValidStacksAddress(address: string): boolean {
+  if (!address) return false;
+  // Stacks addresses start with SP (mainnet) or ST (testnet)
+  const validPrefixes = ['SP', 'ST', 'SM', 'SN'];
+  const prefix = address.slice(0, 2);
+  if (!validPrefixes.includes(prefix)) return false;
+  // Addresses are typically 40-42 characters
+  if (address.length < 38 || address.length > 42) return false;
+  return true;
+}
+
+/**
+ * Sleep for a given number of milliseconds
+ */
+export function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Retry a function with exponential backoff
+ */
+export async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries = 3,
+  baseDelayMs = 1000
+): Promise<T> {
+  let lastError: Error | undefined;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error as Error;
+      if (i < maxRetries - 1) {
+        await sleep(baseDelayMs * Math.pow(2, i));
+      }
+    }
+  }
+  throw lastError;
+}

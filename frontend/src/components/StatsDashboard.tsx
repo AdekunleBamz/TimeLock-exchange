@@ -3,7 +3,13 @@
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Progress } from '@/components/ui/Progress';
+import { CONTRACTS, DEPLOYER_ADDRESS, ACTIVE_NETWORK } from '@/lib/constants';
 import type { FeeStats, PauseStatus } from '@/lib/types';
+
+// Mainnet contracts for stats fetching
+const TIMELOCK_CONTRACT = CONTRACTS.timelockExchange;
+const FEE_COLLECTOR_CONTRACT = CONTRACTS.feeCollector;
+const POSITION_NFT_CONTRACT = CONTRACTS.positionNft;
 
 interface StatCardProps {
   title: string;

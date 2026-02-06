@@ -1,8 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useWallet } from '../lib/wallet-context';
-import { calculateFee, FEE_COLLECTOR_CONTRACT } from '../lib/contracts';
+import { calculateFee } from '../lib/contracts';
+import { CONTRACTS, parseContractId } from '../lib/constants';
 import type { FeeTierInfo, FeeStats } from '../lib/types';
 import { callReadOnlyFunction, cvToValue, uintCV } from '@stacks/transactions';
+
+// Fee collector contract configuration for mainnet
+const { address: FEE_COLLECTOR_ADDRESS, name: FEE_COLLECTOR_NAME } = parseContractId(CONTRACTS.feeCollector);
+const FEE_COLLECTOR_CONTRACT = { address: FEE_COLLECTOR_ADDRESS, name: FEE_COLLECTOR_NAME };
 
 // Fee tier definitions matching contract
 const FEE_TIERS: FeeTierInfo[] = [

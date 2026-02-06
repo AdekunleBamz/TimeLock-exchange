@@ -1,42 +1,102 @@
 ---
 id: 0
-name: Mainnet deployment - TimeLock Exchange v2.0
+name: Mainnet deployment
 network: mainnet
-stacks-node: "https://api.mainnet.hiro.so"
-# Bitcoin node URL - set via environment or Clarinet config
-# bitcoin-node: "${BITCOIN_NODE_URL}"
+stacks-node: "https://api.hiro.so"
+bitcoin-node: "http://blockstack:blockstacksystem@bitcoin.blockstack.com:8332"
 plan:
   batches:
-    # Batch 0: Core infrastructure contracts
     - id: 0
       transactions:
         - contract-publish:
+            contract-name: batch-transfer
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 124620
+            path: contracts/batch-transfer.clar
+            anchor-block-only: true
+            clarity-version: 4
+        - contract-publish:
+            contract-name: emergency-withdraw
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 122980
+            path: contracts/emergency-withdraw.clar
+            anchor-block-only: true
+            clarity-version: 4
+        - contract-publish:
+            contract-name: escrow
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 152140
+            path: contracts/escrow.clar
+            anchor-block-only: true
+            clarity-version: 4
+        - contract-publish:
             contract-name: fee-collector
-            expected-sender: SP3FKNEZ86RG5RT7SZ5FBRGH85FZNG94ZH1MCGG6N
-            cost: 15000
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 44900
             path: contracts/fee-collector.clar
             anchor-block-only: true
             clarity-version: 4
-      epoch: "3.3"
-    # Batch 1: NFT contract (depends on fee-collector for reference)
-    - id: 1
-      transactions:
+        - contract-publish:
+            contract-name: governance
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 159730
+            path: contracts/governance.clar
+            anchor-block-only: true
+            clarity-version: 4
         - contract-publish:
             contract-name: position-nft
-            expected-sender: SP3FKNEZ86RG5RT7SZ5FBRGH85FZNG94ZH1MCGG6N
-            cost: 35000
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 60410
             path: contracts/position-nft.clar
             anchor-block-only: true
             clarity-version: 4
-      epoch: "3.3"
-    # Batch 2: Main exchange contract (depends on position-nft and fee-collector)
-    - id: 2
-      transactions:
+        - contract-publish:
+            contract-name: price-oracle
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 156760
+            path: contracts/price-oracle.clar
+            anchor-block-only: true
+            clarity-version: 4
+        - contract-publish:
+            contract-name: rewards-distributor
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 134900
+            path: contracts/rewards-distributor.clar
+            anchor-block-only: true
+            clarity-version: 4
+        - contract-publish:
+            contract-name: staking
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 160730
+            path: contracts/staking.clar
+            anchor-block-only: true
+            clarity-version: 4
+        - contract-publish:
+            contract-name: staking-rewards
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 130020
+            path: contracts/staking-rewards.clar
+            anchor-block-only: true
+            clarity-version: 4
         - contract-publish:
             contract-name: timelock-exchange
-            expected-sender: SP3FKNEZ86RG5RT7SZ5FBRGH85FZNG94ZH1MCGG6N
-            cost: 85000
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 287230
             path: contracts/timelock-exchange.clar
+            anchor-block-only: true
+            clarity-version: 4
+        - contract-publish:
+            contract-name: timelock-token
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 92490
+            path: contracts/timelock-token.clar
+            anchor-block-only: true
+            clarity-version: 4
+        - contract-publish:
+            contract-name: vault
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 161690
+            path: contracts/vault.clar
             anchor-block-only: true
             clarity-version: 4
       epoch: "3.3"

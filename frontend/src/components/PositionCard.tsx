@@ -1,12 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Progress } from '@/components/ui/Progress';
 import { Tooltip } from '@/components/ui/Tooltip';
+import { CONTRACTS, DEPLOYER_ADDRESS } from '@/lib/constants';
+import { useWallet } from '@/lib/wallet-context';
 import type { Position, EarlyWithdrawalInfo } from '@/lib/types';
+
+// Mainnet contract reference
+const TIMELOCK_CONTRACT = CONTRACTS.timelockExchange;
+const POSITION_NFT_CONTRACT = CONTRACTS.positionNft;
 
 interface PositionCardProps {
   position: Position;
