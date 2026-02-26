@@ -541,3 +541,5 @@ MIT License - see [LICENSE](LICENSE) for details.
 - [Stacks Explorer](https://explorer.stacks.co)
 - [Leather Wallet](https://leather.io)
 - [Xverse Wallet](https://xverse.app)
+
+## Contributing
