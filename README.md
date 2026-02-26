@@ -543,3 +543,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 - [Xverse Wallet](https://xverse.app)
 
 ## Contributing
+
+## Contributing
+
+Contributions welcome!
