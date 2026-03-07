@@ -17,9 +17,9 @@ export function TimeFiStats() {
                 const client = new TimeFiClient(ACTIVE_NETWORK === 'mainnet' ? 'mainnet' : 'testnet');
                 const result = await client.getTVL();
 
-                // result.value contains the microSTX amount from the contract
-                if (result && result.value) {
-                    setTvl(formatSTX(result.value));
+                // result is now the direct value (BigInt) from the contract
+                if (result !== undefined && result !== null) {
+                    setTvl(formatSTX(result));
                 } else {
                     setTvl('0');
                 }
