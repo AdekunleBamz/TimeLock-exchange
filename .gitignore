@@ -21,10 +21,9 @@ settings/Simnet.toml
 .env
 .env.*
 !.env.example
-.test-wallets.json
-.test-results.json
-.distribute-results.json
-.interaction-results.json
+
+# Personal Use
+scripts/
 
 # IDE
 .vscode/
