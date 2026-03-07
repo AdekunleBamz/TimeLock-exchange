@@ -2,6 +2,7 @@
 
 import { ConnectWallet } from '@/components/ConnectWallet'
 import { TimeLockDashboard } from '@/components/TimeLockDashboard'
+import { TimeFiStats } from '@/components/TimeFiStats'
 import { ACTIVE_NETWORK, DEPLOYER_ADDRESS } from '@/lib/constants'
 
 export default function Home() {
@@ -28,6 +29,7 @@ export default function Home() {
         </header>
 
         <ConnectWallet />
+        <TimeFiStats />
         <TimeLockDashboard />
       </div>
     </main>

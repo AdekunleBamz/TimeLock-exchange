@@ -1,0 +1,18 @@
+---
+id: 0
+name: Deploy timelock-token
+network: mainnet
+stacks-node: "https://api.hiro.so"
+bitcoin-node: "http://blockstack:blockstacksystem@bitcoin.blockstack.com:8332"
+plan:
+  batches:
+    - id: 0
+      transactions:
+        - contract-publish:
+            contract-name: timelock-token
+            expected-sender: SP5K2RHMSBH4PAP4PGX77MCVNK1ZEED07CWX9TJT
+            cost: 92490
+            path: contracts/timelock-token.clar
+            anchor-block-only: true
+            clarity-version: 4
+      epoch: "3.3"

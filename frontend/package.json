@@ -15,7 +15,8 @@
     "@stacks/transactions": "^6.17.0",
     "next": "16.0.8",
     "react": "19.2.1",
-    "react-dom": "19.2.1"
+    "react-dom": "19.2.1",
+    "@timefi/sdk": "file:../../TimeFi-Protocol/sdk"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
