@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { TimeFiClient, formatSTX } from '@timefi/sdk';
+import { TimeFiClient, formatSTX } from 'timefi-sdk';
 import { ACTIVE_NETWORK } from '@/lib/constants';
 
 export function TimeFiStats() {

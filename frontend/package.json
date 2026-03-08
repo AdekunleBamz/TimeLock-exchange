@@ -16,7 +16,7 @@
     "next": "16.0.8",
     "react": "19.2.1",
     "react-dom": "19.2.1",
-    "@timefi/sdk": "file:../../TimeFi-Protocol/sdk"
+    "timefi-sdk": "^0.1.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

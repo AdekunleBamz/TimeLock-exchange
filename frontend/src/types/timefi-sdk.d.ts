@@ -1,4 +1,4 @@
-declare module '@timefi/sdk' {
+declare module 'timefi-sdk' {
     export class TimeFiClient {
         constructor(networkType?: 'mainnet' | 'testnet');
         network: any;
